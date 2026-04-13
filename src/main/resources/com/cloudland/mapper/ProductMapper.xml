@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.cloudland.mapper.ProductMapper">
+    <select id="selectByCondition" resultType="com.cloudland.pojo.vo.ProductVO">
+        SELECT product.*,
+        user.username AS customerA_username,
+        user.phone AS customerA_phone
+        FROM product
+        INNER JOIN user ON product.a_id = user.id
+        <where>
+            <!-- 根据条件动态添加查询条件 -->
+            <if test="product.status != null">
+                AND product.status = #{product.status}
+            </if>
+            <if test="product.productName != null and product.productName != ''">
+                AND product.product_name LIKE CONCAT('%', #{product.productName}, '%')
+            </if>
+            <if test="product.id != null and product.id >= 0 ">
+                AND product.id = #{product.id}
+            </if>
+            <if test="product.aId != null and product.aId != ''">
+                AND product.a_id = #{product.aId}
+            </if>
+        </where>
+            <choose>
+                <when test="product != null and product.id == -1">
+                    ORDER BY product.price
+                </when>
+                <when test="product != null and product.id == -2">
+                    ORDER BY product.num DESC
+                </when>
+                <otherwise>
+                    ORDER BY product.id
+                </otherwise>
+            </choose>
+    </select>
+</mapper>

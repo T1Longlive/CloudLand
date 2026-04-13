@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.cloudland.mapper.UserMapper">
+
+    <select id="selectByCondition" resultType="com.cloudland.pojo.User">
+        SELECT
+        user.*
+        FROM
+        user
+        <where>
+            <!-- 根据条件动态添加查询条件 -->
+            <if test="user.status != null">
+                AND user.status = #{user.status}
+            </if>
+            <if test="user.id != null">
+                AND user.id = #{user.id}
+            </if>
+            <if test="user.power != null">
+                AND user.power = #{user.power}
+            </if>
+            <if test="user.username != null and user.username != ''">
+                AND user.username LIKE CONCAT('%', #{user.username}, '%')
+            </if>
+        </where>
+        ORDER BY user.id
+    </select>
+</mapper>

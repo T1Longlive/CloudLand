@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.cloudland.mapper.Order2Mapper">
+
+    <select id="selectByCondition" resultType="com.cloudland.pojo.vo.OrderVO">
+        SELECT order2.*, land.land_name as productName, land.price, user.username, user.phone
+        FROM order2
+        JOIN land ON order2.p_id = land.id
+        JOIN user ON user.id = order2.u_id
+        <where>
+            order2.status != 0
+            AND order2.num = -1
+            <!-- 根据条件动态添加查询条件 -->
+            <if test="order.uId != null and order.uId >= 0 ">
+                AND land.a_id = #{order.uId}
+            </if>
+            <if test="order.id != null and order.id >= 0 ">
+                AND order2.id = #{order.id}
+            </if>
+
+        </where>
+    </select>
+
+    <select id="selectByCondition2" resultType="com.cloudland.pojo.vo.OrderVO">
+        SELECT order2.*, product.product_name, product.price,product.img, user.username, user.phone
+        FROM order2
+        JOIN product ON order2.p_id = product.id
+        JOIN user ON user.id = order2.u_id
+        <where>
+            order2.status != 0
+            AND order2.num != -1
+            <!-- 根据条件动态添加查询条件 -->
+            <if test="order.uId != null and order.uId >= 0 ">
+                AND product.a_id = #{order.uId}
+            </if>
+            <if test="order.id != null and order.id >= 0 ">
+                AND order2.id = #{order.id}
+            </if>
+        </where>
+    </select>
+    <select id="selectOrder" resultType="com.cloudland.pojo.vo.OrderVO">
+        SELECT order2.*, land.land_name as productName, land.price, user.username, user.phone
+        FROM order2
+        JOIN land ON order2.p_id = land.id
+        JOIN user ON user.id = order2.u_id
+        <where>
+            order2.status != 0
+            AND order2.num = -1
+            <!-- 根据条件动态添加查询条件 -->
+            <if test="order.uId != null and order.uId >= 0 ">
+                AND land.a_id = #{order.uId}
+            </if>
+            <if test="order.id != null and order.id >= 0 ">
+                AND order2.id = #{order.id}
+            </if>
+
+        </where>
+    </select>
+
+    <select id="selectOrder2" resultType="com.cloudland.pojo.vo.OrderVO">
+        SELECT order2.*, product.product_name, product.price,product.img, user.username, user.phone
+        FROM order2
+        JOIN product ON order2.p_id = product.id
+        JOIN user ON user.id = order2.u_id
+        <where>
+            order2.status != 0
+            AND order2.num != -1
+            <!-- 根据条件动态添加查询条件 -->
+            <if test="order.uId != null and order.uId >= 0 ">
+                AND product.a_id = #{order.uId}
+            </if>
+            <if test="order.id != null and order.id >= 0 ">
+                AND order2.id = #{order.id}
+            </if>
+        </where>
+    </select>
+</mapper>
