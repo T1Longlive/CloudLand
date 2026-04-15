@@ -175,7 +175,7 @@ router.beforeEach(async (to, from, next) => {
         to.path === '/backend/employee') && !isLoggedIn) {
         alert('未登录！')
         next('/');
-    } else if (to.path === '/user' && !isLoggedIn) {
+    } else if (to.path.startsWith('/user') && !isLoggedIn) {
         alert('请先在首页右上方登录!')
         next('/');
     } else {

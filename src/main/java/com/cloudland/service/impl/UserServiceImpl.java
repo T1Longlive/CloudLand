@@ -9,17 +9,9 @@ import com.cloudland.config.StorageProperties;
 import com.cloudland.controller.result.Code;
 import com.cloudland.controller.result.Msg;
 import com.cloudland.controller.result.Result;
-import com.cloudland.mapper.CloudLandFileMapper;
 import com.cloudland.mapper.LandMapper;
-import com.cloudland.mapper.ProductMapper;
-import com.cloudland.mapper.TrolleyMapper;
 import com.cloudland.mapper.UserMapper;
-import com.cloudland.pojo.CloudLandFile;
-import com.cloudland.pojo.Product;
-import com.cloudland.pojo.Trolley;
 import com.cloudland.pojo.User;
-import com.cloudland.pojo.vo.LandVO;
-import com.cloudland.pojo.vo.TrolleyVo;
 import com.cloudland.service.IUserService;
 import com.cloudland.util.EmailUtils;
 import com.cloudland.util.FileUtil;
@@ -35,7 +27,6 @@ import org.springframework.web.multipart.MultipartFile;
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import java.io.File;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -50,8 +41,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     @Resource
     private UserMapper userMapper;
     @Resource
-    private TrolleyMapper trolleyMapper;
-    @Resource
     private FileUtil fileUtil;
     @Resource
     private BCryptPasswordEncoder passwordEncoder;
@@ -60,13 +49,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     @Resource
     private HttpServletRequest request;
     @Resource
-    private CloudLandFileMapper cloudLandFileMapper;
-    @Resource
     private EmailUtils emailUtils;
     @Resource
     private LandMapper landMapper;
-    @Resource
-    private ProductMapper productMapper;
     @Autowired
     private StringRedisTemplate redisTemplate;
     @Resource
@@ -172,8 +157,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
             String folderPath = storageProperties.getUserIconPath(user.getImg());
             fileUtil.deleteFolder(new File(folderPath));
         }
+        // 解除土地的员工外键引用，避免外键约束报错
+        landMapper.update(null, Wrappers.<com.cloudland.pojo.Land>lambdaUpdate()
+                .in(com.cloudland.pojo.Land::getEmployeeId, Arrays.asList(ids))
+                .set(com.cloudland.pojo.Land::getEmployeeId, null));
         userMapper.deleteBatchIds(Arrays.asList(ids));
-        return new Result(Code.DELETE_OK, null, Msg.DELETE_ERR);
+        return new Result(Code.DELETE_OK, null, Msg.DELETE_OK);
     }
 
     @Override
@@ -322,53 +311,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     public Boolean CodeCheck(String mail, String code) {
         String redisCode = redisTemplate.opsForValue().get(mail);
         return Objects.equals(code, redisCode);
-    }
-
-    public Result selectTrolley(User user) {
-        QueryWrapper<Trolley> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("u_id", user.getId());
-        queryWrapper.orderByDesc("id");
-        List<Trolley> trolleys = trolleyMapper.selectList(queryWrapper);
-        List<TrolleyVo> trolleyVos = new ArrayList<>();
-        for (Trolley trolley : trolleys) {
-            TrolleyVo trolleyVo = new TrolleyVo();
-            trolleyVo.setId(trolley.getId());
-            trolleyVo.setPId(trolley.getPId());
-            trolleyVo.setNum(trolley.getNum());
-            trolleyVo.setUId(trolley.getUId());
-            if (trolley.getNum() == -1) {
-                LandVO landVO = landMapper.selectById(trolley.getPId());
-                QueryWrapper<CloudLandFile> imgWrapper = Wrappers.query();
-                imgWrapper.eq("land_id", landVO.getId());
-                imgWrapper.eq("type", 0);
-                List<CloudLandFile> imgList = cloudLandFileMapper.selectList(imgWrapper);
-                imgList.get(0).setPath("Land_" + landVO.getId() + "/Images/" + imgList.get(0).getPath());
-                landVO.setImageFiles(imgList);
-                trolleyVo.setPrice(landVO.getPrice());
-                trolleyVo.setProductName(landVO.getLandName());
-                trolleyVo.setStatus(landVO.getStatus());
-                trolleyVo.setImg(imgList.get(0).getPath());
-            } else {
-                Product product = productMapper.selectById(trolley.getPId());
-                trolleyVo.setPrice(product.getPrice());
-                trolleyVo.setProductName(product.getProductName());
-                trolleyVo.setImg(product.getImg());
-                trolleyVo.setProductNum(product.getNum());
-                trolleyVo.setStatus(product.getStatus());
-            }
-            trolleyVos.add(trolleyVo);
-        }
-        return new Result(Code.SELECT_OK, trolleyVos, Msg.SELECT_OK);
-    }
-
-    public Result deleteTrolley(Integer id) {
-        trolleyMapper.deleteById(id);
-        return new Result(Code.DELETE_OK, null, Msg.DELETE_OK);
-    }
-
-    public Result addTrolley(Trolley trolley) {
-        trolleyMapper.insert(trolley);
-        return new Result(Code.ADD_OK, null, Msg.ADD_OK);
     }
 
     private Map<String, Object> buildTokenClaims(User user) {

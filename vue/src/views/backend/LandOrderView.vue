@@ -344,7 +344,7 @@ export default {
         formData.append('status', 2);
         formData.append('time', false);
         const {data: res} = await axiosInstance.put('/order', formData)
-        if (res.code===403){
+        if (res.code===10003){
           await this.selectAll()
         }
       }).catch(() => {

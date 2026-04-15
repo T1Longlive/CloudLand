@@ -178,7 +178,7 @@ export default {
     async sendMsg() {
       if (this.checkMsg(0)){
         let {data: res} = await axiosInstance.post('/msg', this.msg)
-        if(res.code===401){
+        if(res.code===10001){
           this.msg = this.$options.data().msg
         }
         this.$notify.info({

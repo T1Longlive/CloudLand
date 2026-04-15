@@ -52,7 +52,7 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
             fileUtil.deleteFolder(new File(folderPath));
         }
         productMapper.deleteBatchIds(Arrays.asList(ids));
-        return new Result(Code.DELETE_OK, null, Msg.DELETE_ERR);
+        return new Result(Code.DELETE_OK, null, Msg.DELETE_OK);
     }
 
     @Override

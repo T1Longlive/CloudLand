@@ -195,11 +195,11 @@ export default {
     },
     async order() {
       let {data: res} = await axiosInstance.post('/order/order', this.user)
-      this.tableData = res.data
-      for (let i = 0; i < this.tableData.length; i++) {
-        let dateTimeString = this.tableData[i].createTime;
-        this.tableData[i].createTime = dateTimeString.replace(/T/g, ' ');
+      for (let i = 0; i < res.data.length; i++) {
+        let dateTimeString = res.data[i].createTime;
+        res.data[i].createTime = dateTimeString.replace(/T/g, ' ');
       }
+      this.$set(this, 'tableData', res.data)
     },
     deleteOrder(id, status) {
       this.$confirm(status === 0 ? '确定取消该订单？' : '确定删除该订单？', '提示', {
@@ -224,7 +224,7 @@ export default {
       formData.append('status', 1);
       formData.append('time', true);
       const {data: res} = await axiosInstance.put('/order', formData)
-      if (res.code===403){
+      if (res.code===10003){
         this.dialogVisible=false
         await this.order();
       }

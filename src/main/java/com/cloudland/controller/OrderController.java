@@ -41,8 +41,10 @@ public class OrderController {
     }
 
     @PutMapping()
-    public Result updateOrder(@RequestParam(value = "ids") Integer[] ids,@RequestParam(value = "status") Integer status){
-        return orderService.updateOrder(ids,status);
+    public Result updateOrder(@RequestParam(value = "ids") Integer[] ids,
+                              @RequestParam(value = "status") Integer status,
+                              @RequestParam(value = "time") Boolean time){
+        return orderService.updateOrder(ids, status, time);
     }
 
     @DeleteMapping("/{id}")

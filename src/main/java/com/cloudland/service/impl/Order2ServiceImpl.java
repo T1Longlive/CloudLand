@@ -108,13 +108,14 @@ public class Order2ServiceImpl extends ServiceImpl<Order2Mapper, Order2> impleme
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Result updateOrder(Integer[] ids, Integer status) {
+    public Result updateOrder(Integer[] ids, Integer status, Boolean time) {
         LocalDateTime currentDateTime = LocalDateTime.now();
         for (Integer id : ids) {
             Order2 order = orderMapper.selectById(id);
-            order.setCreateTime(order.getCreateTime());
-            order.setPayTime(currentDateTime);
             order.setStatus(status);
+            if (Boolean.TRUE.equals(time)) {
+                order.setPayTime(currentDateTime);
+            }
             orderMapper.updateById(order);
         }
         return new Result(Code.UPDATE_OK, null, Msg.UPDATE_OK);

@@ -11,6 +11,7 @@ import com.cloudland.controller.result.Result;
 import com.cloudland.pojo.Order2;
 import com.cloudland.pojo.Trolley;
 import com.cloudland.pojo.User;
+import com.cloudland.service.ITrolleyService;
 import com.cloudland.service.impl.UserServiceImpl;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
@@ -39,6 +40,8 @@ import java.util.Map;
 public class UserController {
     @Resource
     UserServiceImpl userService;
+    @Resource
+    ITrolleyService trolleyService;
     @PostMapping("/login")
     public Result login(@RequestBody  User user,HttpServletRequest request) {
         return userService.loginUser(user,request);
@@ -106,14 +109,14 @@ public class UserController {
 
     @PostMapping("/trolley")
     public Result myTrolley(@RequestBody  User user){
-        return userService.selectTrolley(user);
+        return trolleyService.selectTrolley(user);
     }
     @PostMapping("/addTrolley")
     public Result addTrolley(@RequestBody Trolley trolley){
-        return userService.addTrolley(trolley);
+        return trolleyService.addTrolley(trolley);
     }
     @DeleteMapping("/trolley/{id}")
     public Result deleteTrolley(@PathVariable Integer id) {
-        return userService.deleteTrolley(id);
+        return trolleyService.deleteTrolley(id);
     }
 }

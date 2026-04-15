@@ -27,7 +27,7 @@ public interface IOrder2Service extends IService<Order2> {
 
     Result selectOrder(User user);
 
-    Result updateOrder(Integer[] ids,Integer status);
+    Result updateOrder(Integer[] ids, Integer status, Boolean time);
 
     void getOrder(HttpServletResponse response,Order2 order) throws IOException;
 }
