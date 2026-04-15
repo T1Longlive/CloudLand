@@ -86,6 +86,7 @@ public class Order2ServiceImpl extends ServiceImpl<Order2Mapper, Order2> impleme
             orderVO.setStatus(order2.getStatus());
             if (orderVO.getNum() == -1) {
                 LandVO landVO = landMapper.selectById(order2.getPId());
+                if (landVO == null) continue;
                 QueryWrapper<CloudLandFile> imgWrapper = Wrappers.query();
                 imgWrapper.eq("land_id", landVO.getId());
                 imgWrapper.eq("type", 0);
@@ -97,6 +98,7 @@ public class Order2ServiceImpl extends ServiceImpl<Order2Mapper, Order2> impleme
                 orderVO.setImg(imgList.get(0).getPath());
             } else {
                 Product product = productMapper.selectById(order2.getPId());
+                if (product == null) continue;
                 orderVO.setPrice(product.getPrice());
                 orderVO.setProductName(product.getProductName());
                 orderVO.setImg(product.getImg());
