@@ -5,7 +5,7 @@ RUN mvn dependency:go-offline -q
 COPY src ./src
 RUN mvn clean package -DskipTests -q
 
-FROM openjdk:8-jre-slim
+FROM registry.cn-hangzhou.aliyuncs.com/library/openjdk:8-jre-slim
 WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
 EXPOSE 9090
