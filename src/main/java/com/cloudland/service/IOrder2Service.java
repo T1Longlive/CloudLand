@@ -30,4 +30,8 @@ public interface IOrder2Service extends IService<Order2> {
     Result updateOrder(Integer[] ids, Integer status, Boolean time);
 
     void getOrder(HttpServletResponse response,Order2 order) throws IOException;
+
+    void saveTradeMapping(String outTradeNo, Integer[] orderIds);
+
+    void handlePaySuccess(String outTradeNo);
 }

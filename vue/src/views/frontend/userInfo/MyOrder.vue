@@ -101,7 +101,8 @@
       </div>
       <span slot="footer" class="dialog-footer">
         <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="payOrder(ids)">确认支付</el-button>
+        <el-button type="primary" @click="payOrder(ids)">模拟支付</el-button>
+        <el-button type="warning" @click="alipayOrder()">支付宝支付</el-button>
       </span>
     </el-dialog>
   </div>
@@ -217,6 +218,19 @@ export default {
           });
         }
       })
+    },
+    async alipayOrder() {
+      const formData = new FormData();
+      formData.append('orderIds', this.ids);
+      formData.append('totalAmount', this.totalPrice.toFixed(2));
+      formData.append('userId', this.user.id);
+      const {data: res} = await axiosInstance.post('/alipay/pay', formData);
+      if (res.code === 10001) {
+        const win = window.open('', '_blank');
+        win.document.write(res.data);
+        win.document.forms[0].submit();
+        this.dialogVisible = false;
+      }
     },
     async payOrder(ids) {
       const formData = new FormData();

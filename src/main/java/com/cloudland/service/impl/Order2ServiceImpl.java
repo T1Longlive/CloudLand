@@ -22,6 +22,8 @@ import com.cloudland.pojo.vo.OrderVO;
 import com.cloudland.service.IOrder2Service;
 import com.cloudland.util.DownloadUtil;
 import com.cloudland.util.OrderExporter;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,7 +32,9 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class Order2ServiceImpl extends ServiceImpl<Order2Mapper, Order2> implements IOrder2Service {
@@ -46,6 +50,11 @@ public class Order2ServiceImpl extends ServiceImpl<Order2Mapper, Order2> impleme
     private OrderExporter orderExporter;
     @Resource
     private DownloadUtil downloadUtil;
+
+    @Resource
+    private StringRedisTemplate stringRedisTemplate;
+
+    private static final String TRADE_KEY_PREFIX = "alipay:trade:";
 
     @Override
     public IPage<OrderVO> selectPage(int pageNum, int pageSize, Order2 order) {
@@ -168,6 +177,30 @@ public class Order2ServiceImpl extends ServiceImpl<Order2Mapper, Order2> impleme
             orderMapper.deleteById(order);
         }
         return new Result(Code.DELETE_OK, null, Msg.DELETE_OK);
+    }
+
+    @Override
+    public void saveTradeMapping(String outTradeNo, Integer[] orderIds) {
+        try {
+            String json = new ObjectMapper().writeValueAsString(orderIds);
+            stringRedisTemplate.opsForValue().set(TRADE_KEY_PREFIX + outTradeNo, json, 30, TimeUnit.MINUTES);
+        } catch (Exception e) {
+            throw new RuntimeException("保存交易映射失败", e);
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void handlePaySuccess(String outTradeNo) {
+        String json = stringRedisTemplate.opsForValue().get(TRADE_KEY_PREFIX + outTradeNo);
+        if (json == null) return;
+        try {
+            Integer[] orderIds = new ObjectMapper().readValue(json, Integer[].class);
+            updateOrder(orderIds, 1, true);
+            stringRedisTemplate.delete(TRADE_KEY_PREFIX + outTradeNo);
+        } catch (Exception e) {
+            throw new RuntimeException("处理支付成功回调失败", e);
+        }
     }
 
     @Transactional(rollbackFor = Exception.class)
