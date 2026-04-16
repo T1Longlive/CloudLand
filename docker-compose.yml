@@ -7,9 +7,9 @@ services:
     environment:
       DB_URL: jdbc:mysql://mysql:3306/cloudland?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&allowMultiQueries=true
       DB_USERNAME: root
-      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      DB_PASSWORD: "123456"
       REDIS_HOST: redis
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_PASSWORD: "123456"
       FILE_STORAGE_ROOT: /cloudland-files
       CORS_ALLOWED_ORIGINS: http://8.137.114.176
       ALIPAY_APP_ID: "9021000123611619"
@@ -39,7 +39,7 @@ services:
     image: mysql:8.0
     container_name: cloudland-mysql
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_ROOT_PASSWORD: "123456"
       MYSQL_DATABASE: cloudland
     volumes:
       - mysql-data:/var/lib/mysql
@@ -49,7 +49,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: cloudland-redis
-    command: redis-server --requirepass ${REDIS_PASSWORD}
+    command: redis-server --requirepass 123456
     volumes:
       - redis-data:/data
     restart: unless-stopped
