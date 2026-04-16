@@ -41,6 +41,8 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: "123456"
       MYSQL_DATABASE: cloudland
+    ports:
+      - "3306:3306"
     volumes:
       - mysql-data:/var/lib/mysql
       - ./cloudland.sql:/docker-entrypoint-initdb.d/cloudland.sql
