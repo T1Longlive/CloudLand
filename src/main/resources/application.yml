@@ -1,5 +1,7 @@
 server:
   port: 9090
+  servlet:
+    context-path: /api
 
 access-file:
   resource-handler1: resource/userFile/**
