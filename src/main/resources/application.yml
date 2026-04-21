@@ -64,8 +64,8 @@ alipay:
   appId: ${ALIPAY_APP_ID:your-sandbox-app-id}
   privateKey: ${ALIPAY_PRIVATE_KEY:your-app-private-key}
   publicKey: ${ALIPAY_PUBLIC_KEY:your-alipay-public-key}
-  notifyUrl: ${ALIPAY_NOTIFY_URL:http://8.137.114.176/alipay/notify}
-  returnUrl: ${ALIPAY_RETURN_URL:http://localhost:8080/user/myOrder}
+  notifyUrl: ${ALIPAY_NOTIFY_URL:http://8.137.114.176/api/alipay/notify}
+  returnUrl: ${ALIPAY_RETURN_URL:http://8.137.114.176/user/myOrder}
   gatewayUrl: https://openapi-sandbox.dl.alipay.com/gateway.do
 
 mybatis-plus:
