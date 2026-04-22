@@ -1,7 +1,7 @@
 FROM docker.1panel.live/library/maven:3.8.6-openjdk-8 AS build
 WORKDIR /app
 COPY pom.xml .
-RUN echo '<settings><mirrors><mirror><id>aliyun</id><mirrorOf>*</mirrorOf><url>https://maven.aliyun.com/repository/public</url></mirror></mirrors></settings>' > /root/.m2/settings.xml \
+RUN mkdir -p /root/.m2 && echo '<settings><mirrors><mirror><id>aliyun</id><mirrorOf>*</mirrorOf><url>https://maven.aliyun.com/repository/public</url></mirror></mirrors></settings>' > /root/.m2/settings.xml \
     && mvn dependency:go-offline -q
 COPY src ./src
 RUN mvn clean package -DskipTests -q
