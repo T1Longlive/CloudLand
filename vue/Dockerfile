@@ -1,10 +1,10 @@
-FROM node:16-alpine AS build
+FROM docker.1panel.live/library/node:16-alpine AS build
 WORKDIR /app
 COPY package*.json ./
 RUN npm install --registry=https://registry.npmmirror.com
 COPY . .
 RUN npm run build
 
-FROM nginx:alpine
+FROM docker.1panel.live/library/nginx:alpine
 COPY --from=build /app/dist /usr/share/nginx/html
 EXPOSE 80
