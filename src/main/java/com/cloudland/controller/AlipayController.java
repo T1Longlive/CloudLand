@@ -55,6 +55,12 @@ public class AlipayController {
         return new Result(Code.ADD_OK, form, Msg.ADD_OK);
     }
 
+    @GetMapping("/return")
+    public Result alipayReturn(@RequestParam("out_trade_no") String outTradeNo) {
+        orderService.handlePaySuccess(outTradeNo);
+        return new Result(Code.ADD_OK, null, Msg.ADD_OK);
+    }
+
     @PostMapping("/notify")
     public String notify(HttpServletRequest request) {
         Map<String, String> params = new HashMap<>();

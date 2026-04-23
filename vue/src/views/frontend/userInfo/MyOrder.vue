@@ -137,6 +137,10 @@ export default {
     }
     const isValid = await this.openCheck();
     if (isValid) {
+      const outTradeNo = this.$route.query.out_trade_no;
+      if (outTradeNo) {
+        await axiosInstance.get('/alipay/return', {params: {out_trade_no: outTradeNo}});
+      }
       await this.order();
     }
   },

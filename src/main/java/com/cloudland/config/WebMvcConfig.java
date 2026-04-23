@@ -45,7 +45,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(myInterceptor)
                 .addPathPatterns("/**")
-                .excludePathPatterns("/resource/**", "/land/page", "/land/{id}", "/product/page", "/product/{id}", "/msg", "/msg/mail", "/alipay/notify", "/error");
+                .excludePathPatterns("/resource/**", "/land/page", "/land/{id}", "/product/page", "/product/{id}", "/msg", "/msg/mail", "/alipay/notify", "/alipay/return", "/error");
     }
 
     @Bean
