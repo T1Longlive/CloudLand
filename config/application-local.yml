@@ -1,0 +1,42 @@
+# Local overrides for this machine.
+# This file is ignored by git and loaded by application.yml via spring.config.import.
+
+server:
+  port: 9090
+
+access-file:
+  location: D:/CloudLandFile
+
+spring:
+  datasource:
+    url: jdbc:mysql://127.0.0.1:3306/cloudland?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&allowMultiQueries=true
+    username: root
+    password: 123456
+
+  mail:
+    host: smtp.qq.com
+    port: 465
+    username: 676104035@qq.com
+    password: edyqglxcwnysbcci
+
+  redis:
+    host: 127.0.0.1
+    port: 6379
+    database: 0
+    timeout: 1800000
+    password: 123456
+
+jwt:
+  signKey: 1a9e5f3c7d8b4a6f9c2e1d7b5a8c3f6e
+  expire: 604800000
+  week: 604800000
+
+cors:
+  allowed-origins: http://localhost:8080,http://127.0.0.1:8080
+
+alipay:
+  appId: 9021000123611619
+  privateKey: MIIEowIBAAKCAQEAhOVNnLNoC/rLgKNqUO+5wY0WSawyUHJOjkqlmizlIh+Av9rpPoaf/FmIpnELHbOY05Xkf24tIRj6C2brwYKA4YI3j9DXol6UN1ir2+MVuoFnvbTKGwWXvl5azaLlSsVYa+Fk8lIe5c+RGwlWj4v3JUJU/fJZmELcDlcJMQ0cGYHehBqvRLTH9/fDVU0gboIBTzrgtjZCjXc2E5g6vOCOe7spIDQ4d7hw8mWx1CL1VeNr5ywDwVk+gpTsXAUpXzgPv4DxZemuDbeUFBF6B4yNNeuMk2dNtjM0UEGBJQa5guetoCG6cglBvV4RCcgchDxM/IIXYadmdSaIrKF8oxVs7QIDAQABAoIBADLsCkk5FW1BtCiedWZ99ReNEDU6nizlH+S2Ba6F9WaV26eoIierPjJbvFjKiA/heXXZwaxycyhzgZxM25lSgD/ovZGF3JqC0xhCCdg/s1u7qhyu4aJpCjQPw4t4F5QG+lKcEyom/V/hoSBS+7AVWaYVPKvx6RLGy7tS7lq1Q0ciRtrApArFjAFbvBrE2a/qVxpAUKyyoA7t9Rk6PxrdAGH7IGRwvSrt11z9rjLzyQ7cGpWdu6tQIqTF/YdPhC8Ppjdylb8fDDQeWWveHQvsg8VQURN3MG6sUg7jSzKac3R5GA4F8asSxrLry4YeXs9ssBfd7NCj8xbEzdzCbRYQXgECgYEAuyvCbOBZXY3fi6CtMoEfVuDpdubrjD3aQaq3zD0oqvEM9gkQAE+grfCNbYkpg8iA4IRz/a4U6xtai3LEMpVSNV6cgO7lR/r7lkEPOKFU7Cb2dNHqDjnd2U3nUxoXrw8JQvP+GKXNcCiZbciamfraxDEBpsBCp7avX7c0fnmO1bECgYEAtcQVZZa93VYI6UPoD1DsLUeBAusRfm4igAod66IXrrRmkgY/hhXgHjzrpO28ud1BgAgwoUNYaLhzMtw8Mr7uMwme5t1mo163nNVMDZdg+v6a1AbjuPE7/AwAsXLbu2/oZtktgNbfPHDwsWz0C5InOkr956IeptIfCKWpkbCGTf0CgYBkm1nvogwHIIpniB9wxT0uOsjjM66q/FhD8drHupwQfm9kFGz4bdTFikbK+O5KusyjYi7izd7KnTJnQHI7ak39B/UBzOeLcFopYqEm5Hk8UpkpI+g2a15XPuu3nI/cdi2ZQoNzhjPONNR70VdgqxlKWbk0g6WQdr7/qP9beEWRkQKBgQCJ5RtyeZzK6PVTuj+4NuUmKMP4KcuYxgcIaiRu2gbrdFMIXxMcL0Zayk7fTbjKrM9/STdTcFsG/z/uCuTkfrMJJzhU3wx5zmav5aWP/hMF99gQGLX0XZbrTVPNS1zl4y1FsWdzAhBTsz7267htetClybS8YOKuHmSK09tD+s65JQKBgH4MCL1biGO9TtBiffjAafeen9W4nYARFkCsBR+kyjIv2vlUsjrAzHpg9XAo4QXbh6dbyE4982aQganPK8DB8RssVksJ8aaonAN9vKbygZA7kInNyZhLV23GQ4pqZOomZq7MdcNrRZW7PepUO+Fly9WCcMAFNF6+2oeZMjck6AtL
+  publicKey: MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAgN5xyC2g9bxgzX9WtCGD2k7CIzGO7vLjYKYw8USclmyepn53lXnXb2/ikiX9OfNJfZ6BDPul+A1oTZh0BbaxYs8t/KPlDAZePPMUeZu0vSCUY+zOH6NXXbHiJhxvVvILTJAjvPscuF+2oLq4zXxdIzHkqqvuXI0nTGw7MyPjVCT5e0Q+fyscI4pB91vicPQG8ht4Jd39dxvYAQ+7PoCNRcfiH0wlmLqRYBJq+T1IZl7T9nn9eR3nwt/UbPJVvrwegFkq64irklBPEWt0WZXNA6AUdcq6NR7IofKh52qQIszjiWmxwB+kzlCOZzx5VXDWIjUd8mF7s/D42ez8DD6R9QIDAQAB
+  notifyUrl: http://8.137.114.176/api/alipay/notify
+  returnUrl: http://8.137.114.176/user/myOrder
