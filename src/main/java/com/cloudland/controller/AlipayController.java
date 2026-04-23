@@ -4,6 +4,8 @@ import com.alipay.api.AlipayApiException;
 import com.alipay.api.AlipayClient;
 import com.alipay.api.internal.util.AlipaySignature;
 import com.alipay.api.request.AlipayTradePagePayRequest;
+import com.alipay.api.request.AlipayTradeQueryRequest;
+import com.alipay.api.response.AlipayTradeQueryResponse;
 import com.cloudland.controller.result.Code;
 import com.cloudland.controller.result.Msg;
 import com.cloudland.controller.result.Result;
@@ -57,8 +59,21 @@ public class AlipayController {
 
     @GetMapping("/return")
     public Result alipayReturn(@RequestParam("out_trade_no") String outTradeNo) {
-        orderService.handlePaySuccess(outTradeNo);
-        return new Result(Code.ADD_OK, null, Msg.ADD_OK);
+        try {
+            AlipayTradeQueryRequest request = new AlipayTradeQueryRequest();
+            request.setBizContent("{\"out_trade_no\":\"" + outTradeNo + "\"}");
+            AlipayTradeQueryResponse response = alipayClient.execute(request);
+
+            if (response.isSuccess() && "TRADE_SUCCESS".equals(response.getTradeStatus())) {
+                orderService.handlePaySuccess(outTradeNo);
+                return new Result(Code.ADD_OK, null, Msg.ADD_OK);
+            }
+            log.warn("支付宝交易查询失败: {}, {}", response.getSubCode(), response.getSubMsg());
+            return new Result(Code.ADD_ERR, null, "支付未完成");
+        } catch (AlipayApiException e) {
+            log.error("查询支付宝交易状态失败: {}", e.getMessage(), e);
+            return new Result(Code.ADD_ERR, null, "查询支付状态失败");
+        }
     }
 
     @PostMapping("/notify")
