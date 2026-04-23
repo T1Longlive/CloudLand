@@ -59,15 +59,17 @@ public class AlipayController {
     public String notify(HttpServletRequest request) {
         Map<String, String> params = new HashMap<>();
         request.getParameterMap().forEach((k, v) -> params.put(k, v[0]));
+        log.info("支付宝回调参数: {}", params);
         try {
             boolean signVerified = AlipaySignature.rsaCheckV1(params, alipayPublicKey, "UTF-8", "RSA2");
+            log.info("验签结果: {}, trade_status: {}", signVerified, params.get("trade_status"));
             if (signVerified && "TRADE_SUCCESS".equals(params.get("trade_status"))) {
                 String outTradeNo = params.get("out_trade_no");
                 orderService.handlePaySuccess(outTradeNo);
                 return "success";
             }
-        } catch (AlipayApiException e) {
-            log.error("支付宝回调验签失败: {}", e.getMessage());
+        } catch (Exception e) {
+            log.error("支付宝回调处理失败: {}", e.getMessage(), e);
         }
         return "failure";
     }
