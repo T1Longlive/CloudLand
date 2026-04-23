@@ -17,6 +17,7 @@ services:
       ALIPAY_PUBLIC_KEY: "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAgN5xyC2g9bxgzX9WtCGD2k7CIzGO7vLjYKYw8USclmyepn53lXnXb2/ikiX9OfNJfZ6BDPul+A1oTZh0BbaxYs8t/KPlDAZePPMUeZu0vSCUY+zOH6NXXbHiJhxvVvILTJAjvPscuF+2oLq4zXxdIzHkqqvuXI0nTGw7MyPjVCT5e0Q+fyscI4pB91vicPQG8ht4Jd39dxvYAQ+7PoCNRcfiH0wlmLqRYBJq+T1IZl7T9nn9eR3nwt/UbPJVvrwegFkq64irklBPEWt0WZXNA6AUdcq6NR7IofKh52qQIszjiWmxwB+kzlCOZzx5VXDWIjUd8mF7s/D42ez8DD6R9QIDAQAB"
       ALIPAY_NOTIFY_URL: http://8.137.114.176/api/alipay/notify
       ALIPAY_RETURN_URL: http://8.137.114.176/user/myOrder
+      TZ: Asia/Shanghai
     volumes:
       - cloudland-files:/cloudland-files
     depends_on:
