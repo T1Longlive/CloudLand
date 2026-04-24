@@ -422,6 +422,10 @@ export default {
 </script>
 
 <style lang="less">
+#remember-me:checked + label {
+  color: #105147;
+}
+
 .el-icon-user-solid {
   //font-weight: bolder;
   font-size: 2rem;
