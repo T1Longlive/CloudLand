@@ -422,8 +422,8 @@ export default {
 </script>
 
 <style lang="less">
-#remember-me:checked + label {
-  color: #105147;
+#remember-me {
+  accent-color: #105147;
 }
 
 .el-icon-user-solid {
