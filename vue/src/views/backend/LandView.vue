@@ -100,7 +100,7 @@
                   <span v-cloak>{{ props.row.price }}</span>
                 </el-form-item>
                 <el-form-item label="可用面积 ：" class="expandLabel">
-                  <span v-cloak>{{ props.row.price }}</span>
+                  <span v-cloak>{{ props.row.area }}</span>
                 </el-form-item>
                 <el-form-item label="地址 ：" class="expandLabel">
                   <span v-cloak>{{ props.row.address }}</span>
