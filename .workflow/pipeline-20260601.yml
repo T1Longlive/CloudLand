@@ -1,0 +1,37 @@
+version: '1.0'
+name: pipeline-20260601
+displayName: pipeline-20260601
+triggers:
+  trigger: auto
+  push:
+    branches:
+      prefix:
+        - main
+stages:
+  - name: stage-1b331bc9
+    displayName: 部署
+    strategy: naturally
+    trigger: auto
+    executor:
+      - t1longlive
+    steps:
+      - step: deploy@agent
+        name: deploy_agent
+        displayName: 主机部署
+        hostGroupID:
+          ID: ali_cloudland
+          hostID:
+            - 844d9abd-3fd6-4e32-99ee-3339f2497a55
+        deployArtifact:
+          - source: build
+            name: output
+            target: ~/gitee_go/deploy
+            dependArtifact: output
+        script:
+          - '  cd /root/cloudland'
+          - '  git pull origin main'
+          - '  docker-compose down'
+          - '  docker-compose up -d --build'
+        notify: []
+        strategy:
+          retry: '0'
