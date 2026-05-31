@@ -87,7 +87,7 @@
                 <el-form-item label="用地 ID ：" class="expandLabel">
                   <span v-cloak>{{ props.row.id }}</span>
                 </el-form-item>
-                <el-form-item label="标题 ：" class="expandLabel">
+                <el-form-item label="标题2 ：" class="expandLabel">
                   <span v-cloak>{{ props.row.landName }}</span>
                 </el-form-item>
                 <el-form-item label="用地联系人 ：" class="expandLabel">
