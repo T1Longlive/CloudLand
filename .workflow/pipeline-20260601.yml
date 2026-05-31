@@ -7,6 +7,12 @@ triggers:
     branches:
       prefix:
         - main
+variables:
+  global:
+    - SERVER_PROJECT_PATH
+    - SERVER_HOST
+    - SERVER_USER
+    - SERVER_SSH_KEY
 stages:
   - name: stage-1b331bc9
     displayName: 部署
