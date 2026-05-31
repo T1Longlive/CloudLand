@@ -1,0 +1,52 @@
+name: 自动部署
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  # 阶段1：构建验证（确保代码能编译通过）
+  build:
+    name: 构建验证
+    runs-on: docker
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v3
+
+      - name: 后端编译
+        uses: docker://maven:3.8.6-openjdk-8
+        with:
+          args: mvn clean package -DskipTests -q
+
+      - name: 前端构建
+        uses: docker://node:16-alpine
+        with:
+          args: sh -c "cd vue && npm install --registry=https://registry.npmmirror.com && npm run build"
+
+  # 阶段2：部署到服务器
+  deploy:
+    name: 部署上线
+    needs: build
+    runs-on: linux
+    steps:
+      - name: SSH 部署
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+          SERVER_PROJECT_PATH: ${{ secrets.SERVER_PROJECT_PATH }}
+        run: |
+          # 写入 SSH 私钥
+          mkdir -p ~/.ssh
+          echo "$SERVER_SSH_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H $SERVER_HOST >> ~/.ssh/known_hosts 2>/dev/null
+
+          # SSH 执行部署
+          ssh -o StrictHostKeyChecking=no $SERVER_USER@$SERVER_HOST "
+            cd $SERVER_PROJECT_PATH &&
+            git pull origin main &&
+            docker-compose down &&
+            docker-compose up -d --build
+          "
