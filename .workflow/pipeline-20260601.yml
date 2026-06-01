@@ -1,43 +1,74 @@
 version: '1.0'
 name: pipeline-20260601
-displayName: pipeline-20260601
+displayName: 自动构建部署
 triggers:
   trigger: auto
   push:
     branches:
       prefix:
         - main
-variables:
-  global:
-    - SERVER_HOST
-    - SERVER_PROJECT_PATH
-    - SERVER_SSH_KEY
-    - SERVER_USER
+
 stages:
-  - name: stage-1b331bc9
-    displayName: 部署
-    strategy: naturally
-    trigger: auto
+  # ==========================================
+  # [阶段 1] 代码克隆
+  # 目的：在 Gitee 云端获取最新的源码
+  # ==========================================
+  - name: stage-clone
+    displayName: 检出代码
+    steps:
+      - type: base
+        name: checkout-code
+        script:
+          # 克隆代码到 gitee_go 临时目录
+          - mkdir -p ~/gitee_go/deploy && cd ~/gitee_go/deploy
+          - git clone --depth=1 https://${{ secrets.GITEE_TOKEN || 'x' }}@gitee.com/t1longlive/cloudland.git repo_clone
+
+  # ==========================================
+  # [阶段 2] 主机部署
+  # 目的：将刚才克隆的代码发送到你的阿里云服务器
+  # ==========================================
+  - name: stage-deploy
+    displayName: 部署上线
+    trigger: after_stage
     executor:
       - t1longlive
+    
     steps:
-      - step: deploy@agent
-        name: deploy_agent
-        displayName: 主机部署
+      - type: deploy@agent
+        name: deploy_server
+        displayName: 服务器操作
         hostGroupID:
-          ID: ali_cloudland
-          hostID:
+          id: ali_cloudland
+          ids:
             - 844d9abd-3fd6-4e32-99ee-3339f2497a55
+        
+        # 【关键点】这里接收了阶段 1 生成的真实代码，不再是假货！
         deployArtifact:
           - source: build
-            name: output
-            target: ~/gitee_go/deploy
-            dependArtifact: output
+            name: checkout-code
+            target: /home/gitee_user/project_source
+        
         script:
-          - '  cd /root/cloudland'
-          - '  git pull origin main'
-          - '  docker-compose down'
-          - '  docker-compose up -d --build'
-        notify: []
-        strategy:
-          retry: '0'
+          # 1. 进入项目目录
+          - cd /root/cloudland
+          
+          # 2. 备份并替换旧代码（将刚传来的最新代码复制过来）
+          #    如果你的项目结构比较简单，也可以直接 rm -rf * 然后用 rsync
+          - rsync -avz --delete /home/gitee_user/project_source/repo_clone/ ./ 
+          
+          # 3. 拉取最新远程分支（确保代码是最新的，如果有新提交的话）
+          - git pull origin main
+          
+          # 4. 兼容新旧版 Docker Compose
+          - |
+            if command -v docker-compose &> /dev/null; then
+              CMD="docker-compose"
+            elif [ "$(docker compose version &> /dev/null)" ]; then
+              CMD="docker compose"
+            else
+              exit 1
+            fi
+            
+          # 5. 重启服务
+          - $CMD down || true
+          - $CMD up -d --build
