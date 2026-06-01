@@ -41,22 +41,22 @@ stop_host_nginx() {
   fi
 }
 
-ensure_frontend_port_available() {
+ensure_host_nginx_stopped() {
   if ! port_in_use; then
     return 0
   fi
 
-  log "Port $FRONTEND_PORT is in use, attempting to stop host nginx"
+  log "Port $FRONTEND_PORT is in use before deploy"
   show_port_owner | tee -a "$LOG_FILE" >/dev/null
   stop_host_nginx
 
   if port_in_use; then
-    log "Port $FRONTEND_PORT is still occupied after stopping host nginx"
+    log "Port $FRONTEND_PORT remains in use after stopping host nginx, continuing because docker compose may be replacing the existing frontend container"
     show_port_owner | tee -a "$LOG_FILE" >/dev/null
-    exit 1
+    return 0
   fi
 
-  log "Port $FRONTEND_PORT is now available"
+  log "Port $FRONTEND_PORT is available after stopping host nginx"
 }
 
 wait_for_frontend() {
@@ -108,10 +108,10 @@ $DC pull mysql redis || true
 log "Building application images"
 $DC build --pull backend frontend
 
-ensure_frontend_port_available
+ensure_host_nginx_stopped
 
 log "Starting containers"
-$DC up -d --remove-orphans
+$DC up -d --remove-orphans --force-recreate backend frontend mysql redis
 
 wait_for_frontend
 

@@ -29,7 +29,6 @@ stages:
           - git fetch origin main
           - git checkout main
           - git reset --hard origin/main
-          - chmod +x scripts/deploy.sh
           - /bin/bash scripts/deploy.sh main
         gitClone: false
         notify: []
