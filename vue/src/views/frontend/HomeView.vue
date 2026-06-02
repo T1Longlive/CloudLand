@@ -11,7 +11,7 @@
         <div class="row align-items-center text-center text-md-left min-vh-100">
           <div class="col-md-6">
             <span>Enhance the value of the world</span>
-            <h3>让世界更有价值！</h3>
+            <h3>让世界更有价</h3>
             <a href="#menu" class="link-btn">开始使用</a>
           </div>
         </div>
