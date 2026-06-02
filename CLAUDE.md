@@ -24,7 +24,7 @@ Cloudland 是一个全栈土地/房产管理平台，后端使用 Spring Boot，
 ### 前端 (Vue 2.6)
 - **端口**: 8080（开发服务器）
 - **位置**: `vue/` 目录
-- **UI 框架**: Element UI
+- **UI 框架**: Element UI + `@opentiny/vue`（两个组件库共存）
 - **结构**:
   - `src/views/backend/` - 管理员/员工视图
   - `src/views/frontend/` - 客户端视图
@@ -41,17 +41,16 @@ Cloudland 是一个全栈土地/房产管理平台，后端使用 Spring Boot，
 
 ### 后端
 ```bash
-# 构建项目
-mvn clean package
+# 构建项目（跳过测试）
+mvn clean package -DskipTests
 
 # 运行应用
 mvn spring-boot:run
 
-# 运行测试
-mvn test
-
 # 主类: com.cloudland.CloudlandApplication
 ```
+
+> 注意：后端无测试类，`mvn test` 不会执行任何测试。
 
 ### 前端
 ```bash
@@ -65,7 +64,35 @@ npm run serve
 
 # 生产环境构建
 npm run build
+
+# 运行 Playwright E2E 测试（需要后端 + 前端 + MySQL + Redis 全部运行）
+npx playwright test                    # 运行全部测试
+npx playwright test tests/login.spec.js  # 运行单个测试文件
+npx playwright test --project=webkit   # 仅在 webkit 运行
 ```
+
+> 测试配置在 `vue/playwright.config.js`，测试文件在 `vue/tests/`。测试 helpers 使用 `ioredis` 直接写入验证码绕过邮件发送，使用 admin API 清理测试数据。
+
+## 运行时依赖
+
+本地开发需要以下服务运行：
+- **MySQL 8.0** — 数据库，初始化脚本: `cloudland.sql`
+- **Redis 7** — 缓存/会话，默认端口 6379
+
+## Docker 部署
+
+```bash
+# 完整栈（后端 + 前端 + MySQL + Redis）
+docker-compose up -d
+```
+
+- 前端通过 Nginx 在端口 80 提供服务，`/api/` 代理到 `backend:9090`
+- 文件上传存储在 Docker 卷 `cloudland-files`（挂载于 `/cloudland-files`）
+- Docker 镜像从 `docker.1panel.live` 镜像拉取（非 Docker Hub 直连）
+
+## CI/CD
+
+Gitee Go 部署流水线（`.gitee/workflows/deploy.yml`）：push 到 `main` 分支时自动触发，通过 SSH 连接服务器执行 `git pull origin main && docker-compose up -d --build`。需要配置 Secrets：`SERVER_HOST`、`SERVER_USER`、`SERVER_SSH_KEY`、`SERVER_PROJECT_PATH`。
 
 ## 配置
 
@@ -81,6 +108,10 @@ npm run build
 
 ### 本地配置覆盖
 在项目根目录创建 `config/application-local.yml` 来覆盖配置，无需修改 `application.yml`。此文件已被 gitignore，通过 `spring.config.import` 加载。
+
+### 其他参考文件
+- `API.md` — 后端 API 接口文档
+- `.env.example` — 环境变量模板，复制为 `.env` 后修改
 
 ## 认证与授权
 
@@ -135,6 +166,31 @@ npm run build
 - **系统**: 双表设计，`msg`（消息模板）和 `msg_send`（已发送消息）
 - **投递**: 通过 Spring Mail 发送邮件通知
 
+## API 约定
+
+### 统一响应格式
+所有接口返回 `Result` 对象（定义在 `controller/result/Result.java`）：
+```json
+{
+  "data": {},        // 响应数据
+  "code": 10004,     // 业务状态码（10000+ 范围，避免与 HTTP 状态码冲突）
+  "msg": "查询成功"   // 消息说明
+}
+```
+
+业务状态码定义在 `controller/result/Code.java`，前端对应常量在 `vue/src/constants/code.js`。主要范围：
+- **10000-10999** — CRUD 操作（10001=添加成功, 10002=删除成功, 10003=修改成功, 10004=查询成功, 对应失败码 +4）
+- **20000-20999** — 认证授权（20005=登录成功, 20006=注册成功, 20003=令牌过期, 20002=密码错误）
+- **30000-30999** — 邮件通知（30001=发送成功, 30003=验证码错误）
+
+### 文件上传模式
+土地和产品接口使用 `multipart/form-data`，文件和 JSON 数据混合传递：
+- 字符串参数（如 `land`、`product`、`user`）是 **JSON 字符串**，不是对象
+- 文件参数（如 `landFiles`、`imageFiles`、`productImg`、`userIcon`）是 `File` 或 `File[]`
+- 单文件大小限制: 60MB
+
+详细接口文档见 `API.md`。
+
 ## 重要注意事项
 
 ### 安全
@@ -143,8 +199,12 @@ npm run build
 - `application.yml` 中的默认凭据仅用于开发环境
 
 ### 支付集成
-- 已集成微信支付 SDK（`wechatpay-java`, `wxpay-sdk`）
+- **支付宝**: `alipay-sdk-java 4.38.10`，沙箱网关，环境变量: `ALIPAY_APP_ID`, `ALIPAY_PRIVATE_KEY`, `ALIPAY_PUBLIC_KEY`, `ALIPAY_NOTIFY_URL`, `ALIPAY_RETURN_URL`
+- **微信支付**: `wechatpay-java` + `wxpay-sdk`（配置未在 `application.yml` 中暴露，可能未完整集成）
 - 支付图片存储在 `vue/payImg/`
+
+### 实时消息
+- 使用 `Java-WebSocket 1.3.8` 实现 WebSocket 推送
 
 ### 定时任务
 - 应用使用 `@EnableScheduling`
