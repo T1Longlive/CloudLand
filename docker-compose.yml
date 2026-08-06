@@ -4,19 +4,23 @@ services:
   backend:
     build: .
     container_name: cloudland-backend
+    env_file:
+      - .env
     environment:
       DB_URL: jdbc:mysql://mysql:3306/cloudland?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&allowMultiQueries=true
       DB_USERNAME: root
-      DB_PASSWORD: "123456"
+      DB_PASSWORD: ${DB_PASSWORD}
       REDIS_HOST: redis
-      REDIS_PASSWORD: "123456"
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
       FILE_STORAGE_ROOT: /cloudland-files
-      CORS_ALLOWED_ORIGINS: http://8.137.114.176
-      ALIPAY_APP_ID: "9021000123611619"
-      ALIPAY_PRIVATE_KEY: "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCE5U2cs2gL+suAo2pQ77nBjRZJrDJQck6OSqWaLOUiH4C/2uk+hp/8WYimcQsds5jTleR/bi0hGPoLZuvBgoDhgjeP0NeiXpQ3WKvb4xW6gWe9tMobBZe+XlrNouVKxVhr4WTyUh7lz5EbCVaPi/clQlT98lmYQtwOVwkxDRwZgd6EGq9EtMf398NVTSBuggFPOuC2NkKNdzYTmDq84I57uykgNDh3uHDyZbHUIvVV42vnLAPBWT6ClOxcBSlfOA+/gPFl6a4Nt5QUEXoHjI0164yTZ022MzRQQYElBrmC562gIbpyCUG9XhEJyByEPEz8ghdhp2Z1JoisoXyjFWztAgMBAAECggEAMuwKSTkVbUG0KJ51Zn31F40QNTqeLOUf5LYFroX1ZpXbp6giJ6s+Mlu8WMqID+F5ddnBrHJzKHOBnEzbmVKAP+i9kYXcmoLTGEIJ2D+zW7uqHK7homkKNA/Di3gXlAb6UpwTKib9X+GhIFL7sBVZphU8q/HpEsbLu1LuWrVDRyJG2sCkCsWMAVu8GsTZr+pXGkBQrLKgDu31GTo/Gt0AYfsgZHC9Ku3XXP2uMvPJDtwalZ27q1AipMX9h0+ELw+mN3KVvx8MNB5Za94dC+yDxVBRE3cwbqxSDuNLMppzdHkYDgXxqxLGsuvLhh5ez2ywF93s0KPzFsTN3MJtFhBeAQKBgQC7K8Js4Fldjd+LoK0ygR9W4Ol25uuMPdpBqrfMPSiq8Qz2CRAAT6Ct8I1tiSmDyIDghHP9rhTrG1qLcsQylVI1XpyA7uVH+vuWQQ84oVTsJvZ00eoOOd3ZTedTGhevDwlC8/4Ypc1wKJltyJqZ+trEMQGmwEKntq9ftzR+eY7VsQKBgQC1xBVllr3dVgjpQ+gPUOwtR4EC6xF+biKACh3roheutGaSBj+GFeAePOuk7by53UGACDChQ1houHMy3Dwyvu4zCZ7m3WajXrec1UwNl2D6/prUBuO48Tv8DACxctu7b+hm2S2A1t88cPCxbPQLkic6Sv3noh6m0h8IpamRsIZN/QKBgGSbWe+iDAcgimeIH3DFPS46yOMzrqr8WEPx2se6nBB+b2QUbPht1MWKRsr47kq6zKNiLuLN3sqdMmdAcjtqTf0H9QHM54twWilioSbkeTxSmSkj6DZrXlc+67ecj9x2LZlCg3OGM8401HvRV2CrGUpZuTSDpZB2vv+o/1t4RZGRAoGBAInlG3J5nMro9VO6P7g25SYow/gpy5jGBwhqJG7aBut0UwhfExwvRlrKTt9NuMqsz39JN1NwWwb/P+4K5OR+swknOFTfDHnOZq/lpY/+EwX32BAYtfRdlutNU81LXOXjLUWxZ3MCEFOzPvbruG160KXJtLxg4q4eZIrT20P6zrklAoGAfgwIvVuIY71O0GJ9+MBp956f1bidgBEWQKwFH6TKMi/a+VSyOsDMemD1cCjhBduHp1vITj3zZpCBqc8rwMHxGyxWSwnxpqicA328pvKBkDuQic3JmEtXbcZDimpk6iZmrsx1w2tFlbs96lQ74WXL1YJwwAU0Xr7ah5kyNyToC0s="
-      ALIPAY_PUBLIC_KEY: "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAgN5xyC2g9bxgzX9WtCGD2k7CIzGO7vLjYKYw8USclmyepn53lXnXb2/ikiX9OfNJfZ6BDPul+A1oTZh0BbaxYs8t/KPlDAZePPMUeZu0vSCUY+zOH6NXXbHiJhxvVvILTJAjvPscuF+2oLq4zXxdIzHkqqvuXI0nTGw7MyPjVCT5e0Q+fyscI4pB91vicPQG8ht4Jd39dxvYAQ+7PoCNRcfiH0wlmLqRYBJq+T1IZl7T9nn9eR3nwt/UbPJVvrwegFkq64irklBPEWt0WZXNA6AUdcq6NR7IofKh52qQIszjiWmxwB+kzlCOZzx5VXDWIjUd8mF7s/D42ez8DD6R9QIDAQAB"
-      ALIPAY_NOTIFY_URL: http://8.137.114.176/api/alipay/notify
-      ALIPAY_RETURN_URL: http://8.137.114.176/user/myOrder
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+      JWT_SIGN_KEY: ${JWT_SIGN_KEY}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+      ALIPAY_APP_ID: ${ALIPAY_APP_ID}
+      ALIPAY_PRIVATE_KEY: ${ALIPAY_PRIVATE_KEY}
+      ALIPAY_PUBLIC_KEY: ${ALIPAY_PUBLIC_KEY}
+      ALIPAY_NOTIFY_URL: ${ALIPAY_NOTIFY_URL}
+      ALIPAY_RETURN_URL: ${ALIPAY_RETURN_URL}
       TZ: Asia/Shanghai
     volumes:
       - cloudland-files:/cloudland-files
@@ -40,7 +44,7 @@ services:
     image: docker.1panel.live/library/mysql:8.0
     container_name: cloudland-mysql
     environment:
-      MYSQL_ROOT_PASSWORD: "123456"
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
       MYSQL_DATABASE: cloudland
     ports:
       - "3306:3306"
@@ -52,7 +56,7 @@ services:
   redis:
     image: docker.1panel.live/library/redis:7-alpine
     container_name: cloudland-redis
-    command: redis-server --requirepass 123456
+    command: redis-server --requirepass ${REDIS_PASSWORD}
     volumes:
       - redis-data:/data
     restart: unless-stopped
