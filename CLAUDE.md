@@ -25,12 +25,23 @@ Cloudland 是一个全栈土地/房产管理平台，后端使用 Spring Boot，
 - **端口**: 8080（开发服务器）
 - **位置**: `vue/` 目录
 - **UI 框架**: Element UI + `@opentiny/vue`（两个组件库共存）
+- **详细指导**: `vue/CLAUDE.md` 包含前端专用的架构和约定
 - **结构**:
   - `src/views/backend/` - 管理员/员工视图
   - `src/views/frontend/` - 客户端视图
   - `src/components/` - 共享组件（Top, Top2）
   - `src/router/` - Vue Router 配置
   - `src/request/` - Axios 实例和拦截器
+  - `src/config/app.js` — 统一配置（API 地址、资源 URL），通过 `APP_CONFIG` 导出
+  - `src/utils/auth.js` — 认证状态管理（token 存储、登录、登出）
+  - `src/constants/code.js` — 业务状态码常量（与后端 `Code.java` 一致）
+
+### 路由结构
+两个顶层布局：
+- `/` → 前台商城：首页、土地列表/详情、产品列表/详情、用户中心、忘记密码
+- `/backend` → 后台管理：用户管理、土地、产品、订单、消息推送
+
+路由守卫在 `src/router/index.js`，访问后台和 `/user` 需要登录验证。
 
 ### 数据库
 - **MySQL**，数据库结构在 `cloudland.sql`
@@ -71,7 +82,7 @@ npx playwright test tests/login.spec.js  # 运行单个测试文件
 npx playwright test --project=webkit   # 仅在 webkit 运行
 ```
 
-> 测试配置在 `vue/playwright.config.js`，测试文件在 `vue/tests/`。测试 helpers 使用 `ioredis` 直接写入验证码绕过邮件发送，使用 admin API 清理测试数据。
+> 测试配置在 `vue/playwright.config.js`，测试文件在 `vue/tests/`。测试 helpers 使用 `ioredis` 直接写入验证码绕过邮件发送，使用 admin API 清理测试数据。测试项目：webkit 和 Microsoft Edge（Edge 启用 slowMo: 800ms）。baseURL: `http://localhost:8080`，workers: 1（串行执行）。
 
 ## 运行时依赖
 
@@ -94,6 +105,14 @@ docker-compose up -d
 
 Gitee Go 部署流水线（`.gitee/workflows/deploy.yml`）：push 到 `main` 分支时自动触发，通过 SSH 连接服务器执行 `git pull origin main && docker-compose up -d --build`。需要配置 Secrets：`SERVER_HOST`、`SERVER_USER`、`SERVER_SSH_KEY`、`SERVER_PROJECT_PATH`。
 
+### 部署脚本
+`scripts/deploy.sh` 是生产环境部署脚本，执行以下流程：
+- 拉取代码并硬重置到目标分支
+- 构建后端和前端 Docker 镜像
+- 停止宿主机 Nginx（避免端口 80 冲突）
+- 启动所有容器并等待前端容器就绪
+- 清理未使用的 Docker 镜像
+
 ## 配置
 
 ### 环境变量
@@ -105,6 +124,13 @@ Gitee Go 部署流水线（`.gitee/workflows/deploy.yml`）：push 到 `main` �
 - **JWT**: `JWT_SIGN_KEY`, `JWT_EXPIRE`, `JWT_WEEK`
 - **CORS**: `CORS_ALLOWED_ORIGINS`（逗号分隔）
 - **文件存储**: `FILE_STORAGE_ROOT`（默认: `D:/CloudLandFile`）
+
+### 前端环境变量
+在 `vue/` 目录下创建 `.env.local` 覆盖默认值：
+- `VUE_APP_API_BASE_URL` — 后端地址（默认 `http://localhost:9090`）
+- `VUE_APP_FRONTEND_BASE_URL` — 前端地址（默认 `window.location.origin`）
+
+配置统一在 `src/config/app.js` 中读取，通过 `APP_CONFIG` 导出，包含 `apiBaseUrl`、`resourceUrls` 等。资源文件 URL 统一通过 `APP_CONFIG.resourceUrls` 拼接，不要硬编码后端地址。
 
 ### 本地配置覆盖
 在项目根目录创建 `config/application-local.yml` 来覆盖配置，无需修改 `application.yml`。此文件已被 gitignore，通过 `spring.config.import` 加载。
