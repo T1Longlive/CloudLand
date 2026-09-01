@@ -1,0 +1,38 @@
+/**
+ * 全局设计变量（Design Tokens）
+ * 全站颜色 / 圆角 / 阴影的唯一来源，组件中禁止再硬编码色值。
+ * 品牌色：云用地绿 #105147
+ */
+:root {
+  /* ---------- 品牌色 ---------- */
+  --color-primary: #105147;        /* 主品牌绿 */
+  --color-primary-rgb: 16, 81, 71; /* 供 rgba(var(--color-primary-rgb), a) 使用 */
+  --color-primary-dark: #0b3a33;   /* 悬停加深 */
+  --color-primary-light: #187062;  /* 次级绿 */
+  --color-primary-muted: #71918b;  /* 品牌灰绿（导航悬停） */
+  --color-accent: #20a895;         /* 价格 / 标题强调青绿 */
+
+  /* ---------- 语义色（与 Element UI 对齐） ---------- */
+  --color-success: #67c23a;
+  --color-warning: #e6a23c;
+  --color-danger: #f56c6c;
+  --color-info: #909399;
+
+  /* ---------- 文本色 ---------- */
+  --color-text-primary: #222222;
+  --color-text-secondary: #666666;
+  --color-text-muted: #919191;
+
+  /* ---------- 边框与背景 ---------- */
+  --color-border: #bebebe;
+  --color-bg-page: #e5e5e5;
+  --color-bg-dark: #232626;        /* 后台侧边栏 */
+
+  /* ---------- 圆角 ---------- */
+  --border-radius-sm: 2px;
+  --border-radius-md: 5px;
+
+  /* ---------- 阴影 ---------- */
+  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.1);
+  --shadow-panel: 5px 5px 10px rgba(0, 0, 0, 0.5);
+}

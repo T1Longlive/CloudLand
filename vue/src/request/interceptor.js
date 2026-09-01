@@ -1,5 +1,6 @@
 import axiosInstance from "./axiosInstance";
 import router from "@/router";
+import Message from "element-ui/lib/message";
 import {clearAuthState, getStoredToken, hasPersistentToken, persistToken} from "@/utils/auth";
 
 let installed = false;
@@ -54,17 +55,24 @@ export const setupInterceptors = () => {
             if (error.response && error.response.status === 402) {
                 // HTTP 402 Payment Required - 权限变更
                 console.log('HTTP 402: 账号权限发生变更');
-                alert("账号权限发生变更！");
+                Message.warning("账号权限发生变更！");
                 clearAuthState();
                 router.push({path: "/"}).then(() => null);
             }
 
             if (error.response && error.response.status === 403) {
-                // HTTP 403 Forbidden - 账号被禁用
-                console.log('HTTP 403: 账号已被禁用');
-                alert("账号已被禁用！");
-                clearAuthState();
-                router.push({path: "/"}).then(() => null);
+                // HTTP 403 Forbidden - 账号被禁用 或 无权限访问后台接口
+                // 通过 X-Forbidden-Reason 响应头区分：status=禁用（清登录态），power=权限不足（保留登录态）
+                const reason = error.response.headers["x-forbidden-reason"];
+                if (reason === "power") {
+                    console.log('HTTP 403: 无权限访问该功能');
+                    Message.error("您没有权限访问该功能！");
+                } else {
+                    console.log('HTTP 403: 账号已被禁用');
+                    Message.error("账号已被禁用！");
+                    clearAuthState();
+                    router.push({path: "/"}).then(() => null);
+                }
             }
 
             if (error.response && error.response.status === 500) {

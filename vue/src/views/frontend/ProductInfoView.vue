@@ -1,6 +1,6 @@
 <template>
   <div class="productInfo">
-    <TopBer></TopBer>
+    <NavBar mode="page"></NavBar>
     <div class="productInfo-main">
       <div class="productInfo-img">
         <div class="block">
@@ -71,13 +71,13 @@
 <script>
 import {CodeToText, regionData} from "element-china-area-data";
 import axiosInstance from "@/request/axiosInstance";
-import TopBer from "@/components/Top2";
+import NavBar from "@/components/NavBar";
 import {APP_CONFIG} from "@/config/app";
 
 export default {
   name: "ProductInfoView",
   components: {
-    TopBer,
+    NavBar,
   },
   data() {
     return {
@@ -119,10 +119,6 @@ export default {
 
   },
   async mounted() {
-    if (sessionStorage.getItem("replace") === "1") {
-      sessionStorage.setItem("replace", "0");
-      location.reload();
-    }
     this.address = regionData
     await this.selectLand();
   },
@@ -141,7 +137,7 @@ export default {
           if (choose===1){
             await this.$router.push('/user/myTrolley');
           }else{
-            alert("该商品已在购物车里了哦, 请勿重复添加!")
+            this.$message.warning("该商品已在购物车里了哦, 请勿重复添加!")
           }
           return
         }
@@ -162,7 +158,7 @@ export default {
       } else if (res2.code === 10001 && choose === 1) {
         await this.$router.push('/user/myTrolley');
       } else {
-        alert("网络繁忙,请重试!")
+        this.$message.error("网络繁忙,请重试!")
         location.reload();
       }
     },
@@ -170,42 +166,28 @@ export default {
   }
 }
 </script>
-<style>
+<style scoped>
 .link-btn2 {
   margin-top: 50px;
   width: 180px;
   padding: 1rem 3rem;
   display: inline-block;
-  border: 0.1rem solid #105147;
-  color: #105147;
+  border: 0.1rem solid var(--color-primary);
+  color: var(--color-primary);
   background: none;
   cursor: pointer;
   font-size: 1.7rem;
 }
 
 .link-btn2:hover {
-  background: #105147;
+  background: var(--color-primary);
   color: #fff;
 }
-
 
 .productInfo {
   width: 100vw;
   height: 100vh;
   background-color: #ffffff;
-}
-
-.productInfo-top-msg > a:hover {
-  color: #71918b;
-}
-
-.productInfo-top-msg-right > a {
-  margin-right: 30px;
-  color: #fff;
-}
-
-.productInfo-top-msg-right > a:hover {
-  color: #71918b;
 }
 
 .productInfo-main {
@@ -216,7 +198,7 @@ export default {
   min-width: 1000px;
   justify-content: space-between;
   padding: 20px;
-  border: 2px solid #bebebe;
+  border: 2px solid var(--color-border);
   border-top: none;
   gap: 30px;
   min-height: 600px;
@@ -231,24 +213,11 @@ export default {
   gap: 50px;
 }
 
-.productInfo-msg {
-  flex: 1;
-  height: 100%;
-}
-
 .product-Card {
   display: flex;
   flex-direction: column;
   height: 230px;
-  border: 1px solid #bebebe;
-}
-
-.el-carousel__item h3 {
-  color: #475669;
-  font-size: 14px;
-  opacity: 0.75;
-  line-height: 150px;
-  margin: 0;
+  border: 1px solid var(--color-border);
 }
 
 .product-Card-1 {
@@ -257,30 +226,30 @@ export default {
   align-items: center;
   padding: 20px;
   height: 35%;
-  border-bottom: 1px dashed #bebebe;
+  border-bottom: 1px dashed var(--color-border);
 }
 
 .product-Card-1 > h2 {
   font-size: 1.5rem;
   font-weight: bolder;
-  color: #2cb7c0;
+  color: var(--color-accent);
 }
 
 .product-Card-1-2 {
   display: flex;
-  justify-content: center; /* 水平居中 */
-  align-items: center; /* 垂直居中 */
+  justify-content: center;
+  align-items: center;
   width: 60px;
   height: 30px;
   color: #000000;
   background-color: #ffffff;
   border-radius: 2px;
-  cursor: pointer; /* 鼠标小手效果 */
+  cursor: pointer;
 }
 
 .product-Card-1-2:hover {
   color: #ffffff;
-  background-color: #105147;
+  background-color: var(--color-primary);
 }
 
 .product-Card-2 {
@@ -299,40 +268,20 @@ export default {
 }
 
 .productInfo-msg {
+  flex: 1;
+  height: 100%;
   display: flex;
   flex-direction: column;
 }
 
 .productInfo-msg-1 {
   display: flex;
-  height: 15%;
-}
-
-.productInfo-msg-2 {
-  display: flex;
-  height: 20%;
-}
-
-.productInfo-msg-4 {
-  display: flex;
-  flex-direction: column;
   padding: 20px;
-  height: 55%;
-  gap: 20px;
-}
-
-.productInfo-msg-4 > p {
-  color: #fd0000;
-}
-
-.productInfo-msg-1 {
-  display: flex;
-  padding: 20px;
-  color: #2cb7c0;
+  color: var(--color-accent);
   font-weight: bolder;
   font-size: 2rem;
   align-items: flex-end;
-  border-bottom: 1px solid #bebebe;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .productInfo-msg-2 {
@@ -343,7 +292,7 @@ export default {
   font-size: 1.2rem;
   font-weight: bolder;
   color: #404749;
-  border-bottom: 1px solid #bebebe;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .productInfo-msg-2-1 {
@@ -352,7 +301,6 @@ export default {
   height: 50%;
   gap: 20px;
 }
-
 
 .productInfo-msg-2-2 {
   display: flex;
@@ -370,7 +318,7 @@ export default {
   display: flex;
   padding: 20px;
   gap: 20%;
-  border-bottom: 1px solid #bebebe;
+  border-bottom: 1px solid var(--color-border);
   height: 30%;
   font-size: 1.1rem;
   font-weight: bolder;
@@ -387,6 +335,18 @@ export default {
   min-width: 50px;
 }
 
+.productInfo-msg-4 {
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  height: 55%;
+  gap: 20px;
+}
+
+.productInfo-msg-4 > p {
+  color: #fd0000;
+}
+
 .productInfo-msg-4-1 {
   display: flex;
   flex-direction: column;
@@ -398,36 +358,5 @@ export default {
 .productInfo-msg-4-2 {
   display: flex;
   gap: 20px;
-}
-.el-button--primary {
-  background-color: #ffffff;
-  border-color: #000000;
-  color: black;
-}
-
-.el-button--primary.is-plain {
-  background-color: #ffffff;
-  border-color: #000000;
-  color: black;
-}
-
-.el-button--primary:focus, .el-button--primary:hover {
-  background-color: #105147;
-  border-color: #105147;
-}
-.el-button--primary.is-plain:focus, .el-button--primary.is-plain:hover {
-  background-color: #105147;
-  border-color: #105147;
-}
-
-
-.el-button:hover{
-  background: #105147;
-  border-color: #105147;
-  color: #FFF;
-}
-.el-message-box__headerbtn .el-message-box__close:hover{
-  font-size: larger;
-  color: #000000;
 }
 </style>

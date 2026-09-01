@@ -1,6 +1,6 @@
 <template>
   <div class="land">
-    <TopBer></TopBer>
+    <NavBar mode="page"></NavBar>
     <div class="land-main">
       <div class="land-select">
         <div class="land-input-select">
@@ -68,13 +68,13 @@
 <script>
 import {CodeToText, regionData} from "element-china-area-data";
 import axiosInstance from "@/request/axiosInstance";
-import TopBer from "@/components/Top2";
+import NavBar from "@/components/NavBar";
 import {APP_CONFIG} from "@/config/app";
 
 export default {
   name: "ProductView",
   components: {
-    TopBer,
+    NavBar,
   },
   data() {
     return {
@@ -122,10 +122,6 @@ export default {
     }
   },
   async mounted() {
-    if (sessionStorage.getItem("replace") === "1") {
-      sessionStorage.setItem("replace", "0");
-      location.reload();
-    }
     this.address = regionData
     await this.selectAll();
   },
@@ -180,71 +176,16 @@ export default {
 }
 </script>
 
-<style>
+<style scoped>
 .description {
-  /* 设置最大宽度 */
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-.user-user-msg {
-  font-size: 1.5rem;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 10px;
 }
 
 .land {
   width: 100vw;
   height: 100vh;
-}
-
-.land-top {
-  width: 100%;
-  height: 13vh;
-  background-color: #105147;
-}
-
-.land-top-msg {
-  width: 80%;
-  height: 100%;
-  background-color: #105147;
-  margin: auto;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-width: 900px;
-}
-
-.land-top-msg > a:hover {
-  color: #71918b;
-}
-
-.logo {
-  display: inline-block; /* 可选：使链接元素变成块级元素，以便设置宽度等属性 */
-  font-size: 2.5rem;
-  color: #fff;
-  font-weight: bolder;
-  padding-left: 1vw;
-}
-
-.land-top-msg-right {
-  font-weight: bold;
-  font-size: 1.5rem;
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.land-top-msg-right > a {
-  margin-right: 30px;
-  color: #fff;
-}
-
-.land-top-msg-right > a:hover {
-  color: #71918b;
 }
 
 .land-main {
@@ -271,8 +212,8 @@ export default {
 }
 
 .input-select-box {
-  border: 2px solid #105147; /* 添加边框，可选 */
-  padding: 20px; /* 为输入框添加内边距 */
+  border: 2px solid var(--color-primary);
+  padding: 20px;
   font-size: 1.5rem;
   width: 90%;
   height: 50px;
@@ -286,12 +227,12 @@ export default {
   width: 80px;
   height: 50px;
   color: #d2d2d2;
-  background-color: #105147;
+  background-color: var(--color-primary);
 }
 
 #land-el-icon-search:hover {
   color: white;
-  background-color: #105147;
+  background-color: var(--color-primary);
 }
 
 .condition {
@@ -302,7 +243,8 @@ export default {
   min-width: 1000px;
   border-radius: 3px;
 }
-.condition-img{
+
+.condition-img {
   width: 100%;
   height: 100%;
 }
@@ -316,12 +258,12 @@ export default {
   align-items: center;
   justify-content: center;
   width: 500px;
-  border-bottom: 1px solid #777777; /* 下边框 */
+  border-bottom: 1px solid #777777;
 }
 
 .land-list-sort .item {
-  flex: 1; /* 让每个子盒子自动扩展以占满剩余空间 */
-  text-align: center; /* 文本居中，可选 */
+  flex: 1;
+  text-align: center;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -334,7 +276,7 @@ export default {
 
 .land-list-sort .item:hover {
   color: white;
-  background-color: #105147;
+  background-color: var(--color-primary);
 }
 
 .land-list-msg {
@@ -345,7 +287,7 @@ export default {
 .land-list-msg .item {
   height: 200px;
   padding: 20px 20px 20px 0;
-  border-bottom: 1px solid #777777; /* 下边框 */
+  border-bottom: 1px solid #777777;
 }
 
 .land-list-msg .item-bottom {
@@ -376,11 +318,21 @@ export default {
   padding-left: 20px;
   width: 550px;
   height: 160px;
-  flex-direction: column; /* 将子元素竖着排列 */
+  flex-direction: column;
 }
 
 .land-text > h2 {
   padding-bottom: 20px;
+  color: var(--color-accent);
+  font-weight: bold;
+}
+
+.land-text > h2:hover {
+  color: var(--color-primary);
+}
+
+.land-text > p {
+  color: var(--color-text-muted);
 }
 
 .product-price {
@@ -391,7 +343,7 @@ export default {
   justify-content: center;
   font-size: 2rem;
   font-weight: bolder;
-  color: #20a895;
+  color: var(--color-accent);
   padding-left: 10px;
 }
 
@@ -408,19 +360,6 @@ export default {
   text-decoration: line-through !important;
 }
 
-.land-text > h2 {
-  color: #20a895;
-  font-weight: bold;
-}
-
-.land-text > h2:hover {
-  color: #187769;
-}
-
-.land-text > p {
-  color: #919191;
-}
-
 .address-area {
   display: flex;
   flex-direction: row;
@@ -429,51 +368,16 @@ export default {
 
 .address-area p,
 .address-area span {
-  color: #919191;
-  margin: 0; /* 去除段落标签的默认外边距 */
+  color: var(--color-text-muted);
+  margin: 0;
 }
 
 .address-area span {
-  margin: 0 5px; /* 可以添加一些间距，使 "|" 与文本之间有空隙 */
-}
-
-.el-pagination.is-background .el-pager li:not(.disabled).active {
-  background-color: #105147 !important;
-  color: white !important;
-}
-
-.el-pagination.is-background .btn-next:hover, .el-pagination.is-background .btn-prev:hover, .el-pagination.is-background .el-pager li:hover {
-  color: #105147 !important;
-  background-color: white !important;
-}
-
-.landSelected {
-  font-weight: bold;
-  color: #721c24 !important;
+  margin: 0 5px;
 }
 
 .landOrder {
   color: white !important;
-  background-color: #105147 !important;
-}
-
-.el-carousel__item h3 {
-  color: #475669;
-  font-size: 14px;
-  opacity: 0.75;
-  line-height: 200px;
-  margin: 0;
-}
-
-.el-carousel__item:nth-child(2n) {
-  background-color: #99a9bf;
-}
-
-.el-carousel__item:nth-child(2n+1) {
-  background-color: #d3dce6;
-}
-#uImg:hover {
-  border: none;
-  box-shadow: 2px 2px 5px rgba(23, 20, 20, 0.8);
+  background-color: var(--color-primary) !important;
 }
 </style>

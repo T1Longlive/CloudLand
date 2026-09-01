@@ -1,24 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.cloudland.mapper.LandMapper">
-    <select id="selectAll" resultType="com.cloudland.pojo.vo.LandVO">
-        SELECT
-            land.*,
-            land_type.type_name AS type_name,
-            land_type.description AS type_description,
-            user_a.username AS customerA_username,
-            user_a.phone AS customerA_phone,
-            user_b.username AS employee_username,
-            user_b.phone AS employee_phone
-        FROM
-            land
-                INNER JOIN
-            land_type ON land.land_type = land_type.id
-                INNER JOIN
-            user AS user_a ON land.a_id = user_a.id
-                INNER JOIN
-            user AS user_b ON land.employee_id = user_b.id;
-    </select>
     <select id="selectByCondition" resultType="com.cloudland.pojo.vo.LandVO">
         SELECT
         land.*,

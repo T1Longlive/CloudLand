@@ -1,0 +1,44 @@
+/**
+ * 跨组件共享样式（全局）
+ * 后台管理页共用页面级样式：原在 7 个后台页面中各自复制一份（非 scoped，
+ * 会污染前台），现以 #backend 前缀隔离收敛。
+ * 依赖 tokens.css 的设计变量。
+ * （登录/注册表单样式已随 LoginForm 组件 scoped 化，不再放在此处）
+ */
+
+/* ==================== 后台管理页共用（#backend 内隔离，避免污染前台） ==================== */
+
+/* 页面根容器内边距：原各页面 section 规则为死代码（模板无 section，内容贴边），
+   统一改为对内容区直接子元素生效；后台首页 .home-dashboard 自行管理布局，排除 */
+#backend .content > *:not(.bg-img):not(.home-dashboard) {
+  padding: 2rem;
+}
+
+/* 分页器容器 */
+#backend .block2 {
+  margin-left: 20px;
+  margin-top: 10px;
+}
+
+/* 表格展开行的描述表单 */
+#backend .demo-table-expand label {
+  font-weight: bolder;
+}
+
+#backend .demo-table-expand .el-form-item {
+  color: #969696;
+  margin-left: 15px;
+  margin-bottom: 0;
+  width: 100%;
+}
+
+/* 页面切换淡入淡出过渡 */
+#backend .fade-enter-active,
+#backend .fade-leave-active {
+  transition: opacity 1s;
+}
+
+#backend .fade-enter,
+#backend .fade-leave-to {
+  opacity: 0;
+}

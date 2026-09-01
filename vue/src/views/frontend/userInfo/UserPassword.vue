@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="password-main">
     <div class="input-msg-title">重置密码</div>
     <div class="input-msg">
@@ -35,10 +35,6 @@ export default {
     }
   },
   mounted() {
-    if (sessionStorage.getItem("replace") === "1") {
-      sessionStorage.setItem("replace", "0");
-      location.reload();
-    }
     this.openCheck();
   },
   methods: {
@@ -55,7 +51,6 @@ export default {
       this.user = user;
     },
     async updateUser() {
-      const formData = new FormData();
       if (this.checkFrom(this.password1) === 'pass' && this.checkFrom(this.password2) === 'pass' && this.checkFrom(this.user.password) === 'pass') {
         if (this.password1 !== this.password2) {
           this.$notify.info({
@@ -66,14 +61,11 @@ export default {
           });
           return
         }
-        this.user.detailedAddress = this.password1
-        formData.append('user', JSON.stringify(this.user));
-        const config = {
-          headers: {
-            frond: 'true',
-          }
-        };
-        const {data: res} = await axiosInstance.put('/user', formData, config);
+        // 专用改密端点：旧/新密码直接以 JSON 提交，用户身份由 token 决定
+        const {data: res} = await axiosInstance.put('/user/password', {
+          oldPassword: this.user.password,
+          newPassword: this.password1
+        });
         if (res.code === 10003) {
           this.$notify.info({
             title: '提示',
@@ -153,7 +145,7 @@ export default {
 }
 
 .input-select-box {
-  border: 2px solid #105147; /* 添加边框，可选 */
+  border: 2px solid var(--color-primary); /* 添加边框，可选 */
   padding: 20px; /* 为输入框添加内边距 */
   font-size: 1.5rem;
   width: 90%;
@@ -168,7 +160,7 @@ export default {
   width: 80px;
   height: 50px;
   color: #d2d2d2;
-  background-color: #105147;
+  background-color: var(--color-primary);
 }
 
 .el-icon-lock {
@@ -179,7 +171,7 @@ export default {
   width: 80px;
   height: 50px;
   color: #d2d2d2;
-  background-color: #105147;
+  background-color: var(--color-primary);
 }
 
 .link-btn {
@@ -187,15 +179,15 @@ export default {
   margin-top: 1rem;
   padding: 1rem 3rem;
   display: inline-block;
-  border: 0.1rem solid #105147;
-  color: #105147;
+  border: 0.1rem solid var(--color-primary);
+  color: var(--color-primary);
   background: none;
   cursor: pointer;
   font-size: 1.7rem;
 }
 
 .link-btn:hover {
-  background: #105147;
+  background: var(--color-primary);
   color: #fff;
 }
 </style>

@@ -1,6 +1,6 @@
 <template>
   <div class="user">
-    <TopBer></TopBer>
+    <NavBar mode="page"></NavBar>
     <div class="user-main">
       <div class="user-select">
         <router-link to="/user" class="page-name">个人中心</router-link>
@@ -25,12 +25,12 @@
 
 <script>
 
-import TopBer from "@/components/Top2";
+import NavBar from "@/components/NavBar";
 
 export default {
   name: "UserView",
   components: {
-    TopBer,
+    NavBar,
   },
   data(){
     return{
@@ -50,10 +50,6 @@ export default {
     }
   },
   mounted() {
-    if (sessionStorage.getItem("replace") === "1") {
-      sessionStorage.setItem("replace", "0");
-      location.reload();
-    }
   },
   methods:{
     exitLogin(){
@@ -71,26 +67,12 @@ export default {
 }
 </script>
 
-<style>
-
+<style scoped>
 .user {
   width: 100vw;
   height: 100vh;
-  background-color: #e5e5e5;
+  background-color: var(--color-bg-page);
   min-height: 700px;
-}
-
-.user-top-msg > a:hover {
-  color: #71918b;
-}
-
-.user-top-msg-right > a {
-  margin-right: 30px;
-  color: #fff;
-}
-
-.user-top-msg-right > a:hover {
-  color: #71918b;
 }
 
 .user-main {
@@ -104,28 +86,24 @@ export default {
 }
 
 .user-select {
-  background-color: #ffffff;
-  flex: 0 0 21%; /* 或者使用 calc(50% - 5%) 来实现 10% 留白 */
-  border-radius: 2px;
-}
-
-.user-msg {
-  background-color: #ffffff;
-  flex: 0 0 78%; /* 或者使用 calc(50% - 5%) 来实现 10% 留白 */
-  border-radius: 2px;
-  padding: 40px;
-  box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.5);
-  min-height: 550px;
-}
-
-.user-select {
   display: flex;
   flex-direction: column;
   gap: 20px;
   padding-top: 20px;
   padding-left: 40px;
   height: 280px;
-  /*box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.5);*/
+  background-color: #ffffff;
+  flex: 0 0 21%;
+  border-radius: 2px;
+}
+
+.user-msg {
+  background-color: #ffffff;
+  flex: 0 0 78%;
+  border-radius: 2px;
+  padding: 40px;
+  box-shadow: var(--shadow-panel);
+  min-height: 550px;
 }
 
 .page-name {
@@ -138,37 +116,19 @@ export default {
 .select-item {
   display: flex;
   height: 180px;
-  flex-direction: column; /* 竖着排列 */
-  gap: 10px; /* 设置元素之间的间距 */
+  flex-direction: column;
+  gap: 10px;
   justify-content: center;
 }
 
-.select-item .item:hover {
-  color: #105147;
-  font-weight: bolder;
-}
-.select-item .item{
+.select-item .item {
   color: #6c757d;
   font-size: 1.3rem;
   cursor: pointer;
 }
 
-.el-button--primary {
-  color: #FFF;
-  background-color: #105147;
-  border-color: #105147;
-}
-.el-button--primary:focus, .el-button--primary:hover {
-  background: #105147;
-  border-color: #105147;
-  color: #FFF;
-}
-.el-button:hover{
-  background: #105147;
-  border-color: #105147;
-  color: #FFF;
-}
-.el-message-box__headerbtn .el-message-box__close:hover{
-  color: #000000;
+.select-item .item:hover {
+  color: var(--color-primary);
+  font-weight: bolder;
 }
 </style>

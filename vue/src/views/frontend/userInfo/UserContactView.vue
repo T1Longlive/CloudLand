@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="password-main">
     <div class="input-msg-title">账号绑定</div>
     <div class="input-msg">
@@ -29,10 +29,6 @@ export default {
     }
   },
   mounted() {
-    if (sessionStorage.getItem("replace") === "1") {
-      sessionStorage.setItem("replace", "0");
-      location.reload();
-    }
     this.openCheck();
   },
   methods: {
@@ -189,7 +185,7 @@ export default {
 }
 
 .input-select-box {
-  border: 2px solid #105147; /* 添加边框，可选 */
+  border: 2px solid var(--color-primary); /* 添加边框，可选 */
   padding: 20px; /* 为输入框添加内边距 */
   font-size: 1.5rem;
   width: 90%;
@@ -204,7 +200,7 @@ export default {
   width: 80px;
   height: 50px;
   color: #d2d2d2;
-  background-color: #105147;
+  background-color: var(--color-primary);
 }
 
 .el-icon-lock {
@@ -215,7 +211,7 @@ export default {
   width: 80px;
   height: 50px;
   color: #d2d2d2;
-  background-color: #105147;
+  background-color: var(--color-primary);
 }
 
 .link-btn {
@@ -223,15 +219,15 @@ export default {
   margin-top: 1rem;
   padding: 1rem 3rem;
   display: inline-block;
-  border: 0.1rem solid #105147;
-  color: #105147;
+  border: 0.1rem solid var(--color-primary);
+  color: var(--color-primary);
   background: none;
   cursor: pointer;
   font-size: 1.7rem;
 }
 
 .link-btn:hover {
-  background: #105147;
+  background: var(--color-primary);
   color: #fff;
 }
 </style>

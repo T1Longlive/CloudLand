@@ -1,0 +1,182 @@
+/**
+ * Element UI 全局主题覆盖（唯一入口）
+ * 收敛自原各页面散落的 .el-* 非 scoped 覆盖，统一品牌视觉。
+ * 依赖 tokens.css 的设计变量，必须在 element-ui 主题之后引入。
+ */
+
+/* ==================== 按钮 ==================== */
+/* 原“白底黑边”方案悬停时为黑字绿底（对比度不足），统一为品牌绿实底 */
+
+/* 默认按钮悬停带品牌色（须置于语义色恢复规则之前） */
+.el-button:hover,
+.el-button:focus {
+  color: var(--color-primary);
+  border-color: rgba(var(--color-primary-rgb), 0.5);
+  background-color: rgba(var(--color-primary-rgb), 0.04);
+}
+
+/* 语义色按钮悬停恢复 Element 默认，保持“删除=红 / 警告=橙 / 中性=灰”的含义，
+   防止被上方通用悬停规则以品牌绿覆盖 */
+.el-button--danger:hover,
+.el-button--danger:focus {
+  color: #ffffff;
+  background-color: #f78989;
+  border-color: #f78989;
+}
+
+.el-button--warning:hover,
+.el-button--warning:focus {
+  color: #ffffff;
+  background-color: #ebb563;
+  border-color: #ebb563;
+}
+
+.el-button--info:hover,
+.el-button--info:focus {
+  color: #ffffff;
+  background-color: #a6a9ad;
+  border-color: #a6a9ad;
+}
+
+.el-button--success:hover,
+.el-button--success:focus {
+  color: #ffffff;
+  background-color: #85ce61;
+  border-color: #85ce61;
+}
+
+.el-button--primary {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.el-button--primary:hover,
+.el-button--primary:focus {
+  background-color: var(--color-primary-dark);
+  border-color: var(--color-primary-dark);
+}
+
+.el-button--primary.is-plain {
+  color: var(--color-primary);
+  background-color: rgba(var(--color-primary-rgb), 0.06);
+  border-color: rgba(var(--color-primary-rgb), 0.4);
+}
+
+.el-button--primary.is-plain:hover,
+.el-button--primary.is-plain:focus {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #ffffff;
+}
+
+/* 文字按钮跟随品牌色，且悬停不出现边框/底色 */
+.el-button--text {
+  color: var(--color-primary);
+}
+
+.el-button--text:hover,
+.el-button--text:focus {
+  color: var(--color-primary-dark);
+  border-color: transparent;
+  background-color: transparent;
+}
+
+/* ==================== 复选框 ==================== */
+.el-checkbox__inner:hover,
+.el-checkbox__input.is-focus .el-checkbox__inner {
+  border-color: var(--color-primary) !important;
+}
+
+.el-checkbox__input.is-checked .el-checkbox__inner,
+.el-checkbox__input.is-indeterminate .el-checkbox__inner {
+  border-color: var(--color-primary) !important;
+  background-color: var(--color-primary) !important;
+}
+
+.el-checkbox__input.is-checked + .el-checkbox__label {
+  color: var(--color-primary);
+}
+
+/* ==================== 分页 ==================== */
+.el-pagination.is-background .el-pager li:not(.disabled).active {
+  background-color: var(--color-primary) !important;
+  color: #ffffff !important;
+}
+
+.el-pagination.is-background .btn-next:hover,
+.el-pagination.is-background .btn-prev:hover,
+.el-pagination.is-background .el-pager li:hover {
+  color: var(--color-primary) !important;
+  background-color: #ffffff !important;
+}
+
+/* ==================== 输入框 ==================== */
+/* 输入文字沿用原后台页面的加粗风格 */
+.el-input__inner {
+  font-size: 1.3rem !important;
+  font-weight: bolder !important;
+}
+
+/* 聚焦 / 悬停统一品牌绿描边 */
+.el-input__inner:focus,
+.el-input.is-active .el-input__inner,
+.el-select .el-input__inner:focus,
+.el-select .el-input.is-focus .el-input__inner,
+.el-cascader .el-input .el-input__inner:focus,
+.el-cascader .el-input.is-focus .el-input__inner,
+.el-range-editor.is-active,
+.el-range-editor.is-active:hover,
+.el-input-number__decrease:hover:not(.is-disabled) ~ .el-input .el-input__inner:not(.is-disabled),
+.el-input-number__increase:hover:not(.is-disabled) ~ .el-input .el-input__inner:not(.is-disabled) {
+  border-color: var(--color-primary);
+}
+
+.el-textarea__inner:hover,
+.el-textarea__inner:focus {
+  border-color: var(--color-primary);
+}
+
+/* ==================== 下拉选中项 ==================== */
+.el-cascader-node.in-active-path,
+.el-cascader-node.is-active,
+.el-cascader-node.is-selectable.in-checked-path,
+.el-select-dropdown__item.selected {
+  color: var(--color-primary) !important;
+}
+
+/* ==================== 通知（居中品牌绿毛玻璃） ==================== */
+.el-notification.left {
+  top: 50vh !important;
+  right: 50vw !important;
+}
+
+.el-notification {
+  background-color: rgba(var(--color-primary-rgb), 0.8) !important;
+  backdrop-filter: blur(10px) !important;
+  border: none !important;
+  top: 35% !important;
+  right: 50% !important;
+  transform: translate(50%, -50%) !important;
+}
+
+.el-notification__title,
+.el-notification__content {
+  color: #ffffff !important;
+}
+
+/* ==================== 弹窗关闭按钮 ==================== */
+.el-message-box__headerbtn .el-message-box__close:hover,
+.el-dialog__headerbtn .el-dialog__close:hover {
+  color: #000000;
+}
+
+/* ==================== 表单标签 ==================== */
+.el-form-item__label {
+  font-weight: bolder;
+}
+
+/* ==================== 全屏加载 ==================== */
+.el-loading-spinner .el-loading-text,
+.el-loading-spinner i {
+  color: #fdfdfd;
+}

@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="password-main">
     <div class="input-msg-title">我的订单</div>
     <p style="color: red">注意：未支付的订单会在次日0点自动取消</p>
@@ -131,10 +131,6 @@ export default {
     }
   },
   async mounted() {
-    if (sessionStorage.getItem("replace") === "1") {
-      sessionStorage.setItem("replace", "0");
-      location.reload();
-    }
     const isValid = await this.openCheck();
     if (isValid) {
       const outTradeNo = this.$route.query.out_trade_no;
@@ -147,7 +143,7 @@ export default {
   methods: {
     openPay() {
       if (this.multipleSelection.length===0){
-        alert('未选择订单');
+        this.$message.warning('未选择订单');
       }else {
         this.dialogVisible = true;
       }
@@ -251,19 +247,19 @@ export default {
 }
 </script>
 
-<style>
+<style scoped>
 .password-main {
   display: flex;
   flex-direction: column;
   width: 100%;
   height: 100%;
-  gap: 30px; /* 设置元素之间的间距 */
+  gap: 30px;
 }
 
 .input-msg-title {
   color: #6c757d;
   font-size: 2rem;
-  border-bottom: 2px solid #bebebe;
+  border-bottom: 2px solid var(--color-border);
   padding-bottom: 10px;
 }
 
@@ -271,45 +267,7 @@ export default {
   display: flex;
   flex-direction: row;
   align-items: center;
-  justify-content: space-between; /* 使两个子盒子分别靠左和靠右 */
-}
-
-.input-password {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40%;
-  background-color: #cbb6b6;
-}
-
-.input-select-box {
-  border: 2px solid #105147; /* 添加边框，可选 */
-  padding: 20px; /* 为输入框添加内边距 */
-  font-size: 1.5rem;
-  width: 90%;
-  height: 50px;
-}
-
-.el-icon-unlock {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 2.5rem;
-  width: 80px;
-  height: 50px;
-  color: #d2d2d2;
-  background-color: #105147;
-}
-
-.el-icon-lock {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 2.5rem;
-  width: 80px;
-  height: 50px;
-  color: #d2d2d2;
-  background-color: #105147;
+  justify-content: space-between;
 }
 
 .link-btn {
@@ -317,22 +275,23 @@ export default {
   margin-top: 1rem;
   padding: 1rem 3rem;
   display: inline-block;
-  border: 0.1rem solid #105147;
-  color: #105147;
+  border: 0.1rem solid var(--color-primary);
+  color: var(--color-primary);
   background: none;
   cursor: pointer;
   font-size: 1.4rem;
 }
 
 .link-btn:hover {
-  background: #105147;
+  background: var(--color-primary);
   color: #fff;
 }
 
 .link-btn2 {
   width: 30%;
-  border: 0.1rem solid #105147;
-  color: #105147;
+  padding: 0.6rem 1rem;
+  border: 0.1rem solid var(--color-primary);
+  color: var(--color-primary);
   background: none;
   cursor: pointer;
   font-size: 1rem;
@@ -340,8 +299,8 @@ export default {
 }
 
 .link-btn2:hover {
-  border: 0.1rem solid #105147;
-  background: #105147;
+  border: 0.1rem solid var(--color-primary);
+  background: var(--color-primary);
   color: #fff;
 }
 
@@ -350,26 +309,8 @@ export default {
   margin-top: 1rem;
   display: inline-block;
   border: none;
-  color: #105147;
+  color: var(--color-primary);
   background: none;
   font-size: 1.5rem;
-}
-
-.el-checkbox__inner:hover {
-  border-color: #105147 !important;
-}
-
-.el-checkbox__input.is-focus .el-checkbox__inner {
-  border-color: #105147 !important;
-}
-
-.el-checkbox__input.is-checked .el-checkbox__inner,
-.el-checkbox__input.is-indeterminate .el-checkbox__inner {
-  border-color: #105147 !important;
-  background-color: #105147 !important;
-}
-.el-message-box__headerbtn .el-message-box__close:hover{
-  font-size: larger;
-  color: #000000;
 }
 </style>

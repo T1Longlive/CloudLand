@@ -8,9 +8,9 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.cloudland.controller.result.Code;
 import com.cloudland.controller.result.Msg;
 import com.cloudland.controller.result.Result;
-import com.cloudland.pojo.Order2;
 import com.cloudland.pojo.Trolley;
 import com.cloudland.pojo.User;
+import com.cloudland.pojo.dto.UpdatePasswordDTO;
 import com.cloudland.service.ITrolleyService;
 import com.cloudland.service.impl.UserServiceImpl;
 import lombok.extern.slf4j.Slf4j;
@@ -62,6 +62,11 @@ public class UserController {
     public Result update(@RequestParam(value = "userIcon",required = false) MultipartFile userIcon, @RequestParam(value = "user") String userStr,HttpServletRequest request) {
         User user = JSON.parseObject(userStr, User.class);
         return userService.update(userIcon, user,request);
+    }
+
+    @PutMapping("/password")
+    public Result updatePassword(@RequestBody UpdatePasswordDTO dto, HttpServletRequest request) {
+        return userService.updatePassword(dto, request);
     }
 
     @PostMapping("/page")

@@ -2,7 +2,9 @@ import Vue from 'vue'
 import VueRouter from 'vue-router'
 import Frontend from '../views/frontend/MainView'
 import Backend from '../views/backend/MainView'
+import Message from "element-ui/lib/message";
 import axiosInstance from "@/request/axiosInstance";
+import {createEmptyUser, getCachedLoginState, getStoredToken, setCachedLoginState} from "@/utils/auth";
 
 Vue.use(VueRouter)
 
@@ -121,36 +123,32 @@ const router = new VueRouter({
     mode: "history",
     base: process.env.BASE_URL,
     routes,
+    scrollBehavior(to, from, savedPosition) {
+        // 前端页面均为整页滚动布局，路由切换后回到顶部（浏览器前进/后退恢复原位置）
+        if (savedPosition) {
+            return savedPosition;
+        }
+        return {x: 0, y: 0};
+    }
 });
 router.afterEach((to) => {
     document.title = to.meta.title || '云用地'
 })
 
+/**
+ * 校验当前登录态（供路由守卫使用）
+ * 性能：原先每次导航都 POST /user/login 校验，导航密集时请求放大；
+ * 现在配合 auth.js 的登录态缓存（TTL 5 分钟，登录成功/登出/清 token 时失效），
+ * 缓存命中时不发请求。
+ */
 async function isUserLoggedIn() {
-    const isToken1 = sessionStorage.getItem("token") !== undefined && sessionStorage.getItem("token") !== null
-    const isToken2 = localStorage.getItem("token") !== undefined && localStorage.getItem("token") !== null
-    let token = null
-    if (isToken1 || isToken2) {
-        if (isToken1) {
-            token = sessionStorage.getItem("token")
-        } else {
-            token = localStorage.getItem("token")
-        }
-    } else {
-        return false
+    const token = getStoredToken();
+    if (!token) {
+        return false;
     }
-    const user = {
-        id: null,
-        username: null,
-        password: null,
-        phone: null,
-        age: null,
-        address: null,
-        img: null,
-        status: 1,
-        detailedAddress: null,
-        power: 0,
-        mail: null
+    const cached = getCachedLoginState();
+    if (cached !== null) {
+        return cached;
     }
     const config = {
         headers: {
@@ -159,36 +157,25 @@ async function isUserLoggedIn() {
             'frond': 'true', // 添加自定义请求头
         }
     };
-    let {data: res} = await axiosInstance.post('/user/login', user, config)
-    return res.code === 20005;
+    let {data: res} = await axiosInstance.post('/user/login', createEmptyUser(), config)
+    const loggedIn = res.code === 20005;
+    setCachedLoginState(loggedIn);
+    return loggedIn;
 }
+
+// 需要登录才能访问的后台页面（其余后台页面由各页面内部的 openCheck 处理）
+const PROTECTED_BACKEND_PATHS = ['/backend/land', '/backend/customerA', '/backend/customerB', '/backend/employee'];
 
 // 全局前置守卫
 router.beforeEach(async (to, from, next) => {
-    // 在这里可以编写拦截逻辑，例如检查用户是否有权限访问该路由
-    // 如果要允许跳转，调用 next()；如果要拦截跳转，调用 next(false) 或者 next('/other-route') 来重定向到其他路由
-    // 示例：检查用户是否登录，如果未登录，跳转到登录页
     const isLoggedIn = await isUserLoggedIn();
-    if ((to.path === '/backend/land' ||
-        to.path === '/backend/customerA' ||
-        to.path === '/backend/customerB' ||
-        to.path === '/backend/employee') && !isLoggedIn) {
-        alert('未登录！')
+    if (PROTECTED_BACKEND_PATHS.includes(to.path) && !isLoggedIn) {
+        Message.warning('未登录！')
         next('/');
     } else if (to.path.startsWith('/user') && !isLoggedIn) {
-        alert('请先在首页右上方登录!')
+        Message.warning('请先在首页右上方登录!')
         next('/');
     } else {
-        if ((from.path === "/" && sessionStorage.getItem("main") === "0") || (from.path === "/" && to.path === "/")) {
-
-        } else {
-            sessionStorage.setItem("replace", "1");
-        }
-        if (to.path === "/") {
-            sessionStorage.setItem("main", "1");
-        } else {
-            sessionStorage.setItem("main", "0");
-        }
         next();
     }
 })

@@ -21,8 +21,6 @@ import java.util.zip.ZipOutputStream;
 @Component
 @Slf4j
 public class FileUtil {
-    private static final String FILE_FOLDER = "/CloudLandFile";
-    private static final String IMAGE_FOLDER = "/Images";
     @Resource
     LandMapper landMapper;
     @Resource

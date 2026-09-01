@@ -45,7 +45,11 @@ public class WebMvcConfig implements WebMvcConfigurer {
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(myInterceptor)
                 .addPathPatterns("/**")
-                .excludePathPatterns("/resource/**", "/land/page", "/land/{id}", "/product/page", "/product/{id}", "/msg", "/msg/mail", "/alipay/notify", "/alipay/return", "/error");
+                // 免认证白名单：静态资源、公开浏览、留言订阅、支付宝回调
+                .excludePathPatterns("/resource/**", "/land/page", "/land/{id}", "/product/page", "/product/{id}",
+                        "/msg", "/msg/mail", "/alipay/notify", "/alipay/return", "/error")
+                // 免认证白名单：认证相关接口（原 URL contains 关键词匹配的精确化替代）
+                .excludePathPatterns("/user/login", "/user/register", "/user/code", "/user/forgetPassword");
     }
 
     @Bean
@@ -61,7 +65,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
         config.setAllowedOrigins(originList.isEmpty() ? Collections.singletonList("http://localhost:8080") : originList);
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(Arrays.asList("token", "Content-Type", "remember", "frond", "code", "contact", "forgetPassword"));
-        config.setExposedHeaders(Collections.singletonList("updatedToken"));
+        config.setExposedHeaders(Arrays.asList("updatedToken", "X-Forbidden-Reason"));
         config.setMaxAge(-1L);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);

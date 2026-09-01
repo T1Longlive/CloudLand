@@ -1,7 +1,7 @@
 const { defineConfig } = require('@vue/cli-service')
 module.exports = defineConfig({
   parallel: false,
-  productionSourceMap: true,
+  productionSourceMap: false,
   transpileDependencies: true,
   devServer: {
     // historyApiFallback: true,

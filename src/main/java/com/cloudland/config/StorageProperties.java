@@ -35,10 +35,6 @@ public class StorageProperties {
         return resolve("Product", fileName);
     }
 
-    public String getLandBaseDir() {
-        return resolve("LandFile");
-    }
-
     public String getLandDir(Integer landId) {
         return resolve("LandFile", "Land_" + landId);
     }

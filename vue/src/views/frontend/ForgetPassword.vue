@@ -78,7 +78,7 @@ export default {
       formData.append('path', code);
       const {data: res} = await axiosInstance.post('/user/forgetPassword', formData)
       if (res.code === 10003) {
-        alert("验证成功！请修改你的密码")
+        this.$message.success("验证成功！请修改你的密码")
       } else {
         router.push({path: '/user'}).then(r => null);
       }
@@ -157,19 +157,19 @@ export default {
 }
 </script>
 
-<style>
+<style scoped>
 .password-main {
   display: flex;
   flex-direction: column;
   width: 100%;
   height: 100%;
-  gap: 70px; /* 设置元素之间的间距 */
+  gap: 70px;
 }
 
 .input-msg-title {
   color: #6c757d;
   font-size: 2rem;
-  border-bottom: 2px solid #bebebe;
+  border-bottom: 2px solid var(--color-border);
   padding-bottom: 10px;
 }
 
@@ -178,7 +178,7 @@ export default {
   justify-content: center;
   flex-direction: column;
   align-items: center;
-  gap: 20px; /* 设置元素之间的间距 */
+  gap: 20px;
 }
 
 .input-password {
@@ -190,8 +190,8 @@ export default {
 }
 
 .input-select-box {
-  border: 2px solid #105147; /* 添加边框，可选 */
-  padding: 20px; /* 为输入框添加内边距 */
+  border: 2px solid var(--color-primary);
+  padding: 20px;
   font-size: 1.5rem;
   width: 90%;
   height: 50px;
@@ -205,7 +205,7 @@ export default {
   width: 80px;
   height: 50px;
   color: #d2d2d2;
-  background-color: #105147;
+  background-color: var(--color-primary);
 }
 
 .link-btn {
@@ -213,28 +213,28 @@ export default {
   margin-top: 1rem;
   padding: 1rem 3rem;
   display: inline-block;
-  border: 0.1rem solid #105147;
-  color: #105147;
+  border: 0.1rem solid var(--color-primary);
+  color: var(--color-primary);
   background: none;
   cursor: pointer;
   font-size: 1.7rem;
 }
 
 .link-btn:hover {
-  background: #105147;
+  background: var(--color-primary);
   color: #fff;
 }
 
 .landInfo-top {
   width: 100%;
   height: 13vh;
-  background-color: #105147;
+  background-color: var(--color-primary);
 }
 
 .landInfo-top-msg {
   width: 80%;
   height: 100%;
-  background-color: #105147;
+  background-color: var(--color-primary);
   margin: auto;
   display: flex;
   align-items: center;
@@ -242,69 +242,19 @@ export default {
   min-width: 900px;
 }
 
-.landInfo-top-msg > a:hover {
-  color: #71918b;
-}
-
 .logo {
-  display: inline-block; /* 可选：使链接元素变成块级元素，以便设置宽度等属性 */
+  display: inline-block;
   font-size: 2.5rem;
   color: #fff;
   font-weight: bolder;
   padding-left: 1vw;
 }
 
-
-.landInfo-top-msg-right > a {
-  margin-right: 30px;
-  color: #fff;
-}
-
-.landInfo-top-msg-right > a:hover {
-  color: #71918b;
-}
-
-.el-carousel__item h3 {
-  color: #475669;
-  font-size: 14px;
-  opacity: 0.75;
-  line-height: 150px;
-  margin: 0;
-}
-
-.land-Card-1 > h2 {
-  font-size: 1.5rem;
-  font-weight: bolder;
-  color: #2cb7c0;
-}
-
-.landInfo-msg-4 > p {
-  color: #fd0000;
-}
-
-.landInfo-msg-2-2 > p {
-  width: 70px;
-  background-color: #721c24;
-}
-
 .user {
   width: 100vw;
   height: 100vh;
-  background-color: #e5e5e5;
+  background-color: var(--color-bg-page);
   min-height: 700px;
-}
-
-.user-top-msg > a:hover {
-  color: #71918b;
-}
-
-.user-top-msg-right > a {
-  margin-right: 30px;
-  color: #fff;
-}
-
-.user-top-msg-right > a:hover {
-  color: #71918b;
 }
 
 .user-main {
@@ -317,32 +267,10 @@ export default {
 
 .user-msg {
   background-color: #ffffff;
-  flex: 0 0 78%; /* 或者使用 calc(50% - 5%) 来实现 10% 留白 */
+  flex: 0 0 78%;
   border-radius: 2px;
   padding: 40px;
-  box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-panel);
   min-height: 550px;
-}
-
-.el-button--primary {
-  color: #FFF;
-  background-color: #105147;
-  border-color: #105147;
-}
-
-.el-button--primary:focus, .el-button--primary:hover {
-  background: #105147;
-  border-color: #105147;
-  color: #FFF;
-}
-
-.el-button:hover {
-  background: #105147;
-  border-color: #105147;
-  color: #FFF;
-}
-
-.el-message-box__headerbtn .el-message-box__close:hover {
-  color: #000000;
 }
 </style>

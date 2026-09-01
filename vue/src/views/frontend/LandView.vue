@@ -1,6 +1,6 @@
 <template>
   <div class="land">
-    <TopBer></TopBer>
+    <NavBar mode="page"></NavBar>
     <div class="land-main">
       <div class="land-select">
         <div class="land-input-select">
@@ -116,13 +116,13 @@
 <script>
 import axiosInstance from "@/request/axiosInstance";
 import {regionData, CodeToText} from "element-china-area-data";
-import TopBer from "@/components/Top2";
+import NavBar from "@/components/NavBar";
 import {APP_CONFIG} from "@/config/app";
 
 export default {
   name: "LandView",
   components: {
-    TopBer,
+    NavBar,
   },
   data() {
     return {
@@ -188,10 +188,6 @@ export default {
     }
   },
   async mounted() {
-    if (sessionStorage.getItem("replace") === "1") {
-      sessionStorage.setItem("replace", "0");
-      location.reload();
-    }
     this.address = regionData[22].children[5].children
     await this.selectAll();
   },
@@ -260,23 +256,10 @@ export default {
 }
 </script>
 
-<style>
+<style scoped>
 .land {
   width: 100vw;
   height: 100vh;
-}
-
-.land-top-msg > a:hover {
-  color: #71918b;
-}
-
-.land-top-msg-right > a {
-  margin-right: 30px;
-  color: #fff;
-}
-
-.land-top-msg-right > a:hover {
-  color: #71918b;
 }
 
 .land-main {
@@ -303,8 +286,8 @@ export default {
 }
 
 .input-select-box {
-  border: 2px solid #105147; /* 添加边框，可选 */
-  padding: 20px; /* 为输入框添加内边距 */
+  border: 2px solid var(--color-primary);
+  padding: 20px;
   font-size: 1.5rem;
   width: 90%;
   height: 50px;
@@ -318,18 +301,18 @@ export default {
   width: 80px;
   height: 50px;
   color: #d2d2d2;
-  background-color: #105147;
+  background-color: var(--color-primary);
 }
 
 #land-el-icon-search:hover {
   color: white;
-  background-color: #105147;
+  background-color: var(--color-primary);
 }
 
 .condition2 {
   width: 100%;
   height: 30vh;
-  background-color: #e5e5e5;
+  background-color: var(--color-bg-page);
   display: flex;
   min-height: 100px;
   border-radius: 3px;
@@ -347,11 +330,9 @@ export default {
 }
 
 .condition2-title .item {
-  flex: 1; /* 让每个子盒子自动扩展以占满剩余空间 */
-  /*border: 1px solid #000; !* 添加边框，可选 *!*/
-  text-align: center; /* 文本居中，可选 */
+  flex: 1;
+  text-align: center;
   display: flex;
-  /*align-items: center;*/
   justify-content: right;
   margin-top: 20px;
   margin-right: 20px;
@@ -369,14 +350,13 @@ export default {
 .condition2-list .item {
   display: flex;
   flex-wrap: wrap;
-  flex: 1; /* 让每个子盒子自动扩展以占满剩余空间 */
-  /*align-items: center;*/
+  flex: 1;
   margin-top: 20px;
 }
 
 .condition2-list .sub-item {
   height: 20px;
-  color: #919191;
+  color: var(--color-text-muted);
   margin-right: 20px;
   text-align: center;
   font-size: 1rem;
@@ -396,12 +376,12 @@ export default {
   align-items: center;
   justify-content: center;
   width: 500px;
-  border-bottom: 1px solid #777777; /* 下边框 */
+  border-bottom: 1px solid #777777;
 }
 
 .land-list-sort .item {
-  flex: 1; /* 让每个子盒子自动扩展以占满剩余空间 */
-  text-align: center; /* 文本居中，可选 */
+  flex: 1;
+  text-align: center;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -414,7 +394,7 @@ export default {
 
 .land-list-sort .item:hover {
   color: white;
-  background-color: #105147;
+  background-color: var(--color-primary);
 }
 
 .land-list-msg {
@@ -425,7 +405,7 @@ export default {
 .land-list-msg .item {
   height: 200px;
   padding: 20px 20px 20px 0;
-  border-bottom: 1px solid #777777; /* 下边框 */
+  border-bottom: 1px solid #777777;
 }
 
 .land-list-msg .item-bottom {
@@ -456,11 +436,7 @@ export default {
   padding-left: 20px;
   width: 80%;
   height: 160px;
-  flex-direction: column; /* 将子元素竖着排列 */
-}
-
-.land-text > h2 {
-  padding-bottom: 20px;
+  flex-direction: column;
 }
 
 .land-price {
@@ -471,21 +447,22 @@ export default {
   justify-content: center;
   font-size: 2rem;
   font-weight: bolder;
-  color: #20a895;
+  color: var(--color-accent);
   padding-left: 10px;
 }
 
 .land-text > h2 {
-  color: #20a895;
+  padding-bottom: 20px;
+  color: var(--color-accent);
   font-weight: bold;
 }
 
 .land-text > h2:hover {
-  color: #187769;
+  color: var(--color-primary);
 }
 
 .land-text > p {
-  color: #919191;
+  color: var(--color-text-muted);
 }
 
 .address-area {
@@ -496,22 +473,12 @@ export default {
 
 .address-area p,
 .address-area span {
-  color: #919191;
-  margin: 0; /* 去除段落标签的默认外边距 */
+  color: var(--color-text-muted);
+  margin: 0;
 }
 
 .address-area span {
-  margin: 0 5px; /* 可以添加一些间距，使 "|" 与文本之间有空隙 */
-}
-
-.el-pagination.is-background .el-pager li:not(.disabled).active {
-  background-color: #105147 !important;
-  color: white !important;
-}
-
-.el-pagination.is-background .btn-next:hover, .el-pagination.is-background .btn-prev:hover, .el-pagination.is-background .el-pager li:hover {
-  color: #105147 !important;
-  background-color: white !important;
+  margin: 0 5px;
 }
 
 .landSelected {
@@ -521,6 +488,6 @@ export default {
 
 .landOrder {
   color: white !important;
-  background-color: #105147 !important;
+  background-color: var(--color-primary) !important;
 }
 </style>

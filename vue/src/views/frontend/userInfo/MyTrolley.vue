@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="password-main">
     <div class="input-msg-title">我的购物车</div>
     <div>
@@ -139,10 +139,6 @@ export default {
     }
   },
   async mounted() {
-    if (sessionStorage.getItem("replace") === "1") {
-      sessionStorage.setItem("replace", "0");
-      location.reload();
-    }
     const isValid = await this.openCheck();
     if (isValid) {
       await this.trolley();
@@ -214,7 +210,7 @@ export default {
     },
     async addOrder() {
       if (this.multipleSelection.length === 0) {
-        alert("未选择商品")
+        this.$message.warning("未选择商品")
         return
       }
       const loading = this.$loading({
@@ -241,7 +237,7 @@ export default {
         loading.close();
         if (errArray.length > 0) {
           for (let i = 0; i < errArray.length; i++) {
-            alert("ID [" + this.multipleSelection[errArray[i]].id + "] 名称 [" + this.multipleSelection[errArray[i]].productName + "] 的订单生成失败，请重试")
+            this.$message.error("ID [" + this.multipleSelection[errArray[i]].id + "] 名称 [" + this.multipleSelection[errArray[i]].productName + "] 的订单生成失败，请重试")
           }
           location.reload()
         } else {
@@ -271,19 +267,19 @@ export default {
 }
 </script>
 
-<style>
+<style scoped>
 .password-main {
   display: flex;
   flex-direction: column;
   width: 100%;
   height: 100%;
-  gap: 30px; /* 设置元素之间的间距 */
+  gap: 30px;
 }
 
 .input-msg-title {
   color: #6c757d;
   font-size: 2rem;
-  border-bottom: 2px solid #bebebe;
+  border-bottom: 2px solid var(--color-border);
   padding-bottom: 10px;
 }
 
@@ -291,45 +287,7 @@ export default {
   display: flex;
   flex-direction: row;
   align-items: center;
-  justify-content: space-between; /* 使两个子盒子分别靠左和靠右 */
-}
-
-.input-password {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40%;
-  background-color: #cbb6b6;
-}
-
-.input-select-box {
-  border: 2px solid #105147; /* 添加边框，可选 */
-  padding: 20px; /* 为输入框添加内边距 */
-  font-size: 1.5rem;
-  width: 90%;
-  height: 50px;
-}
-
-.el-icon-unlock {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 2.5rem;
-  width: 80px;
-  height: 50px;
-  color: #d2d2d2;
-  background-color: #105147;
-}
-
-.el-icon-lock {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 2.5rem;
-  width: 80px;
-  height: 50px;
-  color: #d2d2d2;
-  background-color: #105147;
+  justify-content: space-between;
 }
 
 .link-btn {
@@ -337,25 +295,28 @@ export default {
   margin-top: 1rem;
   padding: 1rem 3rem;
   display: inline-block;
-  border: 0.1rem solid #105147;
-  color: #105147;
+  border: 0.1rem solid var(--color-primary);
+  color: var(--color-primary);
   background: none;
   cursor: pointer;
   font-size: 1.4rem;
 }
 
 .link-btn:hover {
-  background: #105147;
+  background: var(--color-primary);
   color: #fff;
 }
 
+/* 删除按钮：红色语义 */
 .link-btn2 {
   width: 30%;
-  border: 0.1rem solid #105147;
-  color: #105147;
+  padding: 0.6rem 1rem;
+  border: 0.1rem solid #b92626;
+  color: #b92626;
   background: none;
   cursor: pointer;
   font-size: 1rem;
+  min-width: 60px;
 }
 
 .link-btn2:hover {
@@ -369,53 +330,22 @@ export default {
   margin-top: 1rem;
   display: inline-block;
   border: none;
-  color: #105147;
+  color: var(--color-primary);
   background: none;
   font-size: 1.5rem;
 }
 
-.el-checkbox__inner:hover {
-  border-color: #105147 !important;
-}
-
-.el-checkbox__input.is-focus .el-checkbox__inner {
-  border-color: #105147 !important;
-}
-
-.el-checkbox__input.is-checked .el-checkbox__inner,
-.el-checkbox__input.is-indeterminate .el-checkbox__inner {
-  border-color: #105147 !important;
-  background-color: #105147 !important;
-}
-.el-loading-spinner .el-loading-text {
-  color: #fdfdfd;
-}
-.el-loading-spinner i {
-  color: #fdfdfd;
-}
-.el-input--mini .el-input__inner{
+/* 表格内 mini 输入框与步进图标 */
+.password-main ::v-deep .el-input--mini .el-input__inner {
   border-color: #bbbbbb !important;
 }
-.el-input--mini .el-input__inner:hover{
+
+.password-main ::v-deep .el-input--mini .el-input__inner:hover {
   border-color: #bbbbbb !important;
 }
-.el-icon-plus{
-  color: #105147;
-}
-.el-icon-plus:hover{
-  color: #105147;
-}
-.el-icon-plus:focus{
-  color: #105147;
-}
-.el-icon-minus{
-  color: #105147;
-}
-.el-icon-minus:hover{
-  color: #105147;
-}
-.el-icon-minus:focus{
-  color: #105147;
-}
 
+.password-main ::v-deep .el-icon-plus,
+.password-main ::v-deep .el-icon-minus {
+  color: var(--color-primary);
+}
 </style>

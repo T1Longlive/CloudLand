@@ -1,7 +1,8 @@
 <template>
   <div id="backend">
     <div class="top">
-      <router-link to="/backend" class="logo"><img src="../../assets/images/cloud.png" class="couldLogo" alt=""> 云用地管理系统
+      <router-link to="/backend" class="logo">
+        <img src="../../assets/images/cloud.png" class="couldLogo" alt=""> 云用地管理系统
       </router-link>
       <nav class="nav">
         <router-link to="/">首页</router-link>
@@ -11,50 +12,51 @@
               style="width: 40px; height: 40px;border-radius: 5px;background-color: white"
               v-if="user.img!==null" :src="filePath+user.img">
         </div>
-
       </nav>
     </div>
     <div class="main">
       <div class="navigation">
         <el-row class="tac">
           <el-col>
+            <!-- router 模式：menu-item 的 index 即跳转路径；
+                 default-active 绑定当前路由，激活项自动高亮 -->
             <el-menu
-                default-active="0"
+                :default-active="$route.path"
                 class="el-menu-vertical-demo"
                 background-color="#232626"
                 text-color="#fff"
                 router
-                active-text-color="#187062">
-              <el-submenu index="1" :index="'/backend/customerA'" v-if="user.power===2">
+                active-text-color="#20a895">
+              <el-submenu index="user-mgmt" v-if="user.power===2">
                 <template slot="title">
                   <i class="el-icon-user-solid"></i>
                   <span>用户管理</span>
                 </template>
                 <el-menu-item-group>
-                  <el-menu-item index="1-1" :index="'/backend/customerA'">· 普通用户</el-menu-item>
-                  <el-menu-item index="1-2" :index="'/backend/customerB'">· 加盟用户</el-menu-item>
-                  <el-menu-item index="1-3" :index="'/backend/employee'">· 平台员工</el-menu-item>
+                  <el-menu-item index="/backend/customerA">普通用户</el-menu-item>
+                  <el-menu-item index="/backend/customerB">加盟用户</el-menu-item>
+                  <el-menu-item index="/backend/employee">平台员工</el-menu-item>
                 </el-menu-item-group>
               </el-submenu>
-              <el-submenu index="2">
+              <el-submenu index="order-mgmt">
                 <template slot="title">
                   <i class="el-icon-s-claim"></i>
                   <span slot="title">订单管理</span>
                 </template>
                 <el-menu-item-group>
-                  <el-menu-item index="1-1" :index="'/backend/orderLand'">· 用地订单</el-menu-item>
-                  <el-menu-item index="1-2" :index="'/backend/orderProduct'">· 产品订单</el-menu-item>
+                  <el-menu-item index="/backend/orderLand">用地订单</el-menu-item>
+                  <el-menu-item index="/backend/orderProduct">产品订单</el-menu-item>
                 </el-menu-item-group>
               </el-submenu>
-              <el-menu-item index="3" :index="'/backend/land'">
+              <el-menu-item index="/backend/land">
                 <i class="el-icon-s-grid"></i>
                 <span slot="title">用地管理</span>
               </el-menu-item>
-              <el-menu-item index="4" :index="'/backend/product'">
+              <el-menu-item index="/backend/product">
                 <i class="el-icon-apple"></i>
                 <span slot="title">产品管理</span>
               </el-menu-item>
-              <el-menu-item index="4" :index="'/backend/pushMsg'" v-if="user.power===2">
+              <el-menu-item index="/backend/pushMsg" v-if="user.power===2">
                 <i class="el-icon-chat-line-round"></i>
                 <span slot="title">推送与反馈</span>
               </el-menu-item>
@@ -66,55 +68,24 @@
         <router-view :parentData="user"></router-view>
       </div>
     </div>
-    <div class="login-form" v-show="isLoginVisible">
-      <form action="">
-        <a href="#" class="logo mr-auto"> <img src="../../assets/images/cloud.png" class="couldLogo" alt=""> 云用地管理系统
-        </a>
-        <h3>让世界更有价值</h3>
-        <input placeholder="请输入你的手机号" id="1" class="box" minlength="11" maxlength="11" v-model="user.phone">
-        <input type="password" placeholder="请输入你的密码" id="2" class="box" minlength="6" maxlength="20"
-               v-model="user.password">
-        <div class="abc"></div>
-        <input placeholder="请输入你的验证码" id="3" minlength="6" maxlength="6" class="box" v-model="code" style="width: 60%">
-        <button type="button"
-                class="link-btn-mail"
-                style="width: 40%"
-                @click="sendCode()"
-                :class="{ 'disabled': isCounting }"
-                :disabled="isCounting"
-        >
-          {{ buttonLabel }}
-        </button>
-        <div class="flex">
-          <el-checkbox disabled>记住我</el-checkbox>
-          <div class="mail">忘记密码?</div>
-        </div>
-        <button type="button" class="link-btn" @click="LoginUp">登录</button>
-        <p class="account">云用地后台系统需要二级账号，若没有可联系我们申请</p>
-      </form>
-    </div>
+    <!--登录表单（统一组件，后台模式：仅登录）-->
+    <LoginForm ref="loginForm" :frond="false" system-name="云用地管理系统" @login-success="onLoginSuccess"/>
   </div>
 </template>
 
 <script>
-import axiosInstance from "@/request/axiosInstance";
 import router from "@/router";
 import {APP_CONFIG} from "@/config/app";
-import {clearAuthState, createEmptyUser, fetchCurrentUser, loginWithPassword} from "@/utils/auth";
-
-const PHONE_REGEX = /^1[3-9]\d{9}$/;
-const CODE_REGEX = /^\S{6}$/;
-const HAS_SPACE_REGEX = /\s/;
+import {clearAuthState, createEmptyUser, fetchCurrentUser} from "@/utils/auth";
+import LoginForm from "@/components/LoginForm";
 
 export default {
   name: "Backend",
+  components: {
+    LoginForm
+  },
   data() {
     return {
-      code: null,
-      isCounting: false,
-      countdown: 59,
-      countdownInterval: null,
-      isLoginVisible: false,
       filePath: APP_CONFIG.resourceUrls.userFile,
       user: createEmptyUser()
     };
@@ -122,20 +93,7 @@ export default {
   mounted() {
     this.openCheck();
   },
-  beforeDestroy() {
-    this.resetCodeCountdown();
-  },
-  computed: {
-    buttonLabel() {
-      return this.isCounting ? `${this.countdown} 秒后重试` : '发送验证码';
-    },
-  },
   watch: {
-    isLoginVisible(newVisibility) {
-      if (!newVisibility) {
-        this.onLoginFormClose();
-      }
-    },
     '$route'() {
       if (this.$route.path === '/backend') {
         this.refreshParentComponent();
@@ -151,80 +109,11 @@ export default {
         showClose: false
       });
     },
-    notifySuccess(message, title = '登录成功') {
-      this.$notify({
-        title,
-        message,
-        type: 'success',
-        duration: 1000,
-        showClose: false
-      });
-    },
-    resetCodeCountdown() {
-      this.isCounting = false;
-      this.countdown = 59;
-      clearInterval(this.countdownInterval);
-      this.countdownInterval = null;
-    },
-    startCodeCountdown() {
-      this.resetCodeCountdown();
-      this.isCounting = true;
-      this.countdownInterval = setInterval(() => {
-        if (this.countdown > 0) {
-          this.countdown -= 1;
-          return;
-        }
-        this.resetCodeCountdown();
-      }, 1000);
-    },
     refreshParentComponent() {
       this.openCheck();
     },
-    checkFrom(code) {
-      if (!this.user.phone) {
-        this.notifyInfo('请填写手机号!');
-        return;
-      }
-      if (!PHONE_REGEX.test(this.user.phone)) {
-        this.notifyInfo('手机号格式有误!');
-        return;
-      }
-      if (!this.user.password) {
-        this.notifyInfo('请填写密码!');
-        return;
-      }
-      if (this.user.password.length < 6 || HAS_SPACE_REGEX.test(this.user.password)) {
-        this.notifyInfo('密码有误!');
-        return;
-      }
-      if (code) {
-        if (!this.code) {
-          this.notifyInfo('请先获取验证码!');
-          return;
-        }
-        if (!CODE_REGEX.test(this.code)) {
-          this.notifyInfo('验证码有误!');
-          return;
-        }
-      }
-      return "pass";
-    },
-    async sendCode() {
-      this.code = null;
-      if (this.checkFrom(false) !== "pass") {
-        return;
-      }
-      if (this.isCounting) {
-        return;
-      }
-      this.startCodeCountdown();
-      const {data: res} = await axiosInstance.post('/user/code', this.user);
-      if (res.code === 30001) {
-        alert("发送成功！验证码5分钟内有效");
-        return;
-      }
-      this.resetCodeCountdown();
-      alert("发送失败！请检查你的信息是否有效");
+    openLogin() {
+      this.$refs.loginForm && this.$refs.loginForm.open();
     },
     async openCheck() {
       this.user = createEmptyUser();
@@ -236,7 +125,7 @@ export default {
             await this.$router.push('/');
           }
         }
-        this.isLoginVisible = true;
+        this.openLogin();
         return;
       }
       if (user.power === 1) {
@@ -245,40 +134,14 @@ export default {
         sessionStorage.removeItem('uid');
       }
       this.user = user;
-      this.isLoginVisible = false;
     },
-    async LoginUp() {
-      if (this.checkFrom(true) !== "pass") {
-        return;
-      }
-      const {user, res: loginRes} = await loginWithPassword(this.user, {
-        frond: false,
-        remember: false,
-        code: this.code
-      });
-      if (!user) {
-        this.notifyInfo(`${loginRes.msg}!`, '登录提示');
-        this.code = null;
-        return;
-      }
-      this.resetCodeCountdown();
+    onLoginSuccess(user) {
       if (user.power === 1) {
         sessionStorage.setItem('uid', user.id);
       } else {
         sessionStorage.removeItem('uid');
       }
       this.user = user;
-      this.isLoginVisible = false;
-      this.code = null;
-      this.notifySuccess(`欢迎你，${this.user.username}`);
-    },
-    resetForm() {
-      this.user = createEmptyUser();
-      this.code = null;
-    },
-    onLoginFormClose() {
-      this.resetCodeCountdown();
-      this.code = null;
     },
     openDialog() {
       this.$confirm('退出登录?', '提示', {
@@ -295,153 +158,105 @@ export default {
 }
 </script>
 
-<style>
-/*根据屏幕大小设置后台盒子大小*/
+<style scoped>
+/* ==================== 布局骨架（flex，固定尺寸替代原 vh/vw 混用） ====================
+ * 原实现 13vh/87vh/15vw/85vw 导致侧栏宽度随窗口比例漂移，现改为：
+ * 顶栏固定 80px、侧栏固定 220px、内容区 flex 自适应并独立滚动 */
 #backend {
-  width: 100vw;
   height: 100vh;
-}
-
-/*顶栏商标页*/
-.top {
+  min-width: 1080px;
+  min-height: 600px;
   display: flex;
-  width: 100vw;
-  height: 13vh;
-  align-items: center; /* 垂直居中 */
-  background-color: #105147;
-  /*background-color: #187062;*/
-  justify-content: space-between; /* 将内容分散对齐，第一个 a 左对齐，nav 和 icons 右对齐 */
-  padding: 10px; /* 添加内边距，根据需要调整 */
-  min-width: 1050px;
+  flex-direction: column;
 }
 
-/*顶栏商标和图标*/
+/* 顶栏 */
+.top {
+  flex: 0 0 80px;
+  display: flex;
+  align-items: center;
+  background-color: var(--color-primary);
+  justify-content: space-between;
+  padding: 0 24px;
+}
+
 .top > a {
-  display: inline-block; /* 可选：使链接元素变成块级元素，以便设置宽度等属性 */
-  font-size: 2.5rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 2rem;
   color: #fff;
   font-weight: bolder;
-  padding-left: 1vw;
 }
 
 .top > a:hover {
-  color: #71918b;
+  color: var(--color-primary-muted);
 }
 
-/*顶栏链接*/
+/* 顶栏链接 */
 .nav {
   display: flex;
-  align-items: center; /* 垂直居中 */
-  margin-left: auto; /* 右对齐 */
-  margin-right: 2vw;
+  align-items: center;
 }
 
 .nav > a {
-  display: inline-block; /* 可选：使链接元素变成块级元素，以便设置宽度等属性 */
-  font-size: 1.5rem;
+  display: inline-block;
+  font-size: 1.4rem;
   color: #fff;
   font-weight: bolder;
-  margin-right: 3vw; /* 将<a>标签左移相对于盒子的左边距 */
+  margin-right: 3vw;
 }
 
-.mail {
-  font-size: 1.5rem;
-  color: #105147;
-  margin-left: auto;
-  cursor: pointer; /* 将鼠标指针设置为手型指针 */
+.nav > a:hover {
+  color: var(--color-primary-muted);
 }
 
-.mail:hover {
-  color: #FF0000; /* 设置鼠标悬停时的颜色，您可以将 #FF0000 替换为所需的颜色代码 */
+/* 侧边栏菜单用户图标 */
+.el-icon-user-solid {
+  font-size: 2rem;
 }
 
-/*包括导航菜单和路由界面的大盒子*/
+/* 主体：侧栏 + 内容区 */
 .main {
+  flex: 1;
   display: flex;
+  min-height: 0; /* 允许子元素收缩滚动 */
+  overflow: hidden;
 }
 
-/*导航菜单*/
+/* 侧边导航 */
 .navigation {
-  width: 15vw;
-  height: 87vh;
-  min-width: 200px;
-  background-color: #232626;
+  flex: 0 0 220px;
+  background-color: var(--color-bg-dark);
+  overflow-y: auto; /* 菜单超高时侧栏内滚动 */
 }
 
-/*路由页面盒子*/
+/* 内容区 */
 .content {
-  width: 85vw;
-  height: 87vh;
-  min-width: 870px;
+  flex: 1;
   background-color: #ffffff;
-  overflow: auto; /* 添加滚动条以处理内容溢出 */
+  overflow: auto;
 }
 
-/*element ui去除导航栏边框*/
+/* element ui 去除导航栏边框 */
 .el-menu {
-  border-right: none !important;;
+  border-right: none !important;
 }
 
-/*element ui加粗导航栏字体*/
+/* element ui 加粗导航栏字体 */
 .tac {
   font-weight: bolder;
-}
-
-.el-notification.left {
-  top: 50vh !important;
-  right: 50vw !important;
-}
-
-.el-notification {
-  background-color: rgba(16, 81, 71, 0.8) !important;
-  backdrop-filter: blur(10px) !important;
-  border: none !important;
-  top: 35% !important; /* 垂直居中 */
-  right: 50% !important; /* 水平居中 */
-  transform: translate(50%, -50%) !important; /* 通过平移调整位置 */
-}
-
-.el-notification__title {
-  color: white !important;
-}
-
-.el-notification__content {
-  color: white !important;
 }
 
 #user-msg {
   display: flex;
   justify-content: center;
   align-items: center;
-  font-size: 1.5rem;
+  font-size: 1.4rem;
   margin-right: 2rem;
   color: #fff;
   font-weight: bolder;
-  gap: 10px; /* 设置元素之间的间距 */
+  gap: 10px;
   cursor: pointer;
-}
-
-.link-btn-mail {
-  width: 100%;
-  padding: 1.2rem 1.4rem;
-  border: 0.1rem solid #105147;
-  border-left: none; /* 移除左边框 */
-  font-size: 1.6rem;
-  margin: 1rem 0;
-}
-
-.link-btn-mail:hover {
-  background: #105147;
-  color: #fff;
-}
-
-.disabled {
-  background: #105147;
-  color: #fff;
-  cursor: not-allowed;
-}
-
-.nav > a:hover {
-  color: #71918b;
 }
 </style>

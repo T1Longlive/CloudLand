@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="user-main-w">
     <div class="user-msg-title">我的资料</div>
     <div class="user-msg-w">
@@ -62,10 +62,6 @@ export default {
     }
   },
   mounted() {
-    if (sessionStorage.getItem("replace") === "1") {
-      sessionStorage.setItem("replace", "0");
-      location.reload();
-    }
     this.openCheck();
   },
   methods: {
@@ -200,36 +196,25 @@ export default {
 }
 </script>
 
-<style>
-.el-input__inner {
-  margin-left: -14px;
-  border: none !important;
-  font-size: 1.3rem !important;
-  font-weight: bolder !important;
-}
-
-.el-cascader-node.in-active-path, .el-cascader-node.is-active, .el-cascader-node.is-selectable.in-checked-path {
-  color: #0c5460 !important;
-}
-
+<style scoped>
 .user-main-w {
   display: flex;
   flex-direction: column;
   width: 100%;
   height: 100%;
-  gap: 30px; /* 设置元素之间的间距 */
+  gap: 30px;
 }
 
 .user-msg-title {
   color: #6c757d;
   font-size: 2rem;
-  border-bottom: 2px solid #bebebe;
+  border-bottom: 2px solid var(--color-border);
   padding-bottom: 10px;
 }
 
 .user-msg-w {
   display: flex;
-  gap: 100px; /* 设置元素之间的间距 */
+  gap: 100px;
 }
 
 .msg-list {
@@ -277,7 +262,7 @@ export default {
   width: 180px;
   height: 100px;
   gap: 50px;
-  border-bottom: 2px solid #bebebe;
+  border-bottom: 2px solid var(--color-border);
 }
 
 .msg-list-item:hover {
@@ -307,15 +292,21 @@ export default {
   width: 180px;
   padding: 1rem 3rem;
   display: inline-block;
-  border: 0.1rem solid #105147;
-  color: #105147;
+  border: 0.1rem solid var(--color-primary);
+  color: var(--color-primary);
   background: none;
   cursor: pointer;
   font-size: 1.7rem;
 }
 
 .link-btn2:hover {
-  background: #105147;
+  background: var(--color-primary);
   color: #fff;
+}
+
+/* 信息行内的级联选择器：边框由 .msg-list-item 提供，内层输入框去边框对齐 */
+.msg-list-item ::v-deep .el-input__inner {
+  margin-left: -14px;
+  border: none !important;
 }
 </style>

@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.cloudland.Interceptor.MyInterceptor;
 import com.cloudland.config.StorageProperties;
 import com.cloudland.controller.result.Code;
 import com.cloudland.controller.result.Msg;
@@ -12,6 +13,7 @@ import com.cloudland.controller.result.Result;
 import com.cloudland.mapper.LandMapper;
 import com.cloudland.mapper.UserMapper;
 import com.cloudland.pojo.User;
+import com.cloudland.pojo.dto.UpdatePasswordDTO;
 import com.cloudland.service.IUserService;
 import com.cloudland.util.EmailUtils;
 import com.cloudland.util.FileUtil;
@@ -19,6 +21,7 @@ import com.cloudland.util.JwtUtils;
 import io.jsonwebtoken.Claims;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -56,6 +59,14 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     private StringRedisTemplate redisTemplate;
     @Resource
     private StorageProperties storageProperties;
+
+    /** 万能验证码开关（code.master-enabled）：开启后登录/注册/找回密码均可用万能码通过校验 */
+    @Value("${code.master-enabled:false}")
+    private boolean masterCodeEnabled;
+
+    /** 万能验证码值（code.master-value），默认 000000 */
+    @Value("${code.master-value:000000}")
+    private String masterCode;
 
     @Override
     public Result loginUser(User user, HttpServletRequest request) {
@@ -167,20 +178,24 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
     @Override
     public Result update(MultipartFile userIcon, User user, HttpServletRequest request) {
+        // 越权防护：普通用户只能修改自己的资料，且禁止变更 power/status/debt（防提权）
+        Integer loginId = (Integer) request.getAttribute(MyInterceptor.ATTR_USER_ID);
+        Integer loginPower = (Integer) request.getAttribute(MyInterceptor.ATTR_USER_POWER);
+        if (loginId != null && (loginPower == null || loginPower < 1)) {
+            User current = userMapper.selectById(loginId);
+            if (current == null) {
+                return new Result(Code.POWER_ERR, null, Msg.POWER_ERR);
+            }
+            user.setId(loginId);
+            user.setPower(current.getPower());
+            user.setStatus(current.getStatus());
+            user.setDebt(current.getDebt());
+        }
         if (!isUserNotRegistered(user)) {
             return new Result(Code.PHONE_EXIST, null, Msg.PHONE_EXIST);
         }
         if (!isMailNotRegistered(user)) {
             return new Result(Code.MAIL_EXIST, null, Msg.MAIL_EXIST);
-        }
-
-        if (request.getHeader("frond") != null && Boolean.parseBoolean(request.getHeader("frond"))) {
-            QueryWrapper<User> queryWrapper = new QueryWrapper<>();
-            queryWrapper.eq("id", user.getId());
-            User result = userMapper.selectOne(queryWrapper);
-            if (!passwordEncoder.matches(user.getPassword(), result.getPassword())) {
-                return new Result(Code.PASSWORD_ERR, null, Msg.PASSWORD_ERR);
-            }
         }
 
         if (userIcon != null) {
@@ -190,32 +205,56 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
             user.setImg((String) objects.get(0));
         }
 
-        if (user.getPassword() != null) {
-            QueryWrapper<User> queryWrapper = new QueryWrapper<>();
-            queryWrapper.eq("id", user.getId());
-            User result = userMapper.selectOne(queryWrapper);
-            if (request.getHeader("frond") != null && Boolean.parseBoolean(request.getHeader("frond"))) {
-                if (!Boolean.parseBoolean(request.getHeader("contact"))) {
-                    if (!passwordEncoder.matches(user.getPassword(), result.getPassword())) {
-                        return new Result(Code.PASSWORD_ERR, null, Msg.PASSWORD_ERR);
-                    }
-                    if (passwordEncoder.matches(user.getDetailedAddress(), result.getPassword())) {
-                        return new Result(Code.PASSWORD_SAME, null, Msg.PASSWORD_SAME);
-                    }
-                    user.setDetailedAddress(result.getDetailedAddress());
-                    user.setPassword(passwordEncoder.encode(user.getDetailedAddress()));
-                } else {
-                    if (Objects.equals(user.getMail(), result.getMail()) && Objects.equals(user.getPhone(), result.getPhone())) {
-                        return new Result(Code.UPDATE_SAME, null, Msg.UPDATE_SAME);
-                    }
-                    user.setPassword(result.getPassword());
-                }
-            } else {
-                user.setPassword(passwordEncoder.encode(user.getPassword()));
+        boolean frond = request.getHeader("frond") != null && Boolean.parseBoolean(request.getHeader("frond"));
+        if (frond) {
+            // 前台场景：密码仅用于身份确认（改绑定信息时必须验当前密码），
+            // 修改密码一律走专用端点 PUT /user/password，本接口不再处理前台改密
+            User result = userMapper.selectById(user.getId());
+            if (result == null) {
+                return new Result(Code.PHONE_NO_EXIST, null, Msg.PHONE_NO_EXIST);
             }
+            if (user.getPassword() == null || !passwordEncoder.matches(user.getPassword(), result.getPassword())) {
+                return new Result(Code.PASSWORD_ERR, null, Msg.PASSWORD_ERR);
+            }
+            if (Boolean.parseBoolean(request.getHeader("contact"))) {
+                // 改绑定：手机/邮箱至少一项变化才允许提交
+                if (Objects.equals(user.getMail(), result.getMail()) && Objects.equals(user.getPhone(), result.getPhone())) {
+                    return new Result(Code.UPDATE_SAME, null, Msg.UPDATE_SAME);
+                }
+            }
+            // 前台请求保留原密码哈希（不通过本接口改密）
+            user.setPassword(result.getPassword());
+        } else if (user.getPassword() != null) {
+            // 后台管理：管理员可直接设置新密码（重置密码）
+            user.setPassword(passwordEncoder.encode(user.getPassword()));
         }
 
         userMapper.updateById(user);
+        return new Result(Code.UPDATE_OK, null, Msg.UPDATE_OK);
+    }
+
+    @Override
+    public Result updatePassword(UpdatePasswordDTO dto, HttpServletRequest request) {
+        // 用户 ID 一律取登录态，不信任请求体（防越权改他人密码）
+        Integer loginId = (Integer) request.getAttribute(MyInterceptor.ATTR_USER_ID);
+        if (loginId == null) {
+            return new Result(Code.POWER_ERR, null, Msg.POWER_ERR);
+        }
+        User result = userMapper.selectById(loginId);
+        if (result == null) {
+            return new Result(Code.PHONE_NO_EXIST, null, Msg.PHONE_NO_EXIST);
+        }
+        if (dto.getOldPassword() == null || !passwordEncoder.matches(dto.getOldPassword(), result.getPassword())) {
+            return new Result(Code.PASSWORD_ERR, null, Msg.PASSWORD_ERR);
+        }
+        if (dto.getNewPassword() == null || dto.getNewPassword().equals(dto.getOldPassword())) {
+            return new Result(Code.PASSWORD_SAME, null, Msg.PASSWORD_SAME);
+        }
+        // 只更新密码字段，避免携带其他字段误改资料
+        User update = new User();
+        update.setId(loginId);
+        update.setPassword(passwordEncoder.encode(dto.getNewPassword()));
+        userMapper.updateById(update);
         return new Result(Code.UPDATE_OK, null, Msg.UPDATE_OK);
     }
 
@@ -280,8 +319,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
             }
 
             user = userMapper.selectById(user.getId());
-            String redisCode = redisTemplate.opsForValue().get(user.getPhone());
-            if (redisCode != null && Objects.equals(path, redisCode)) {
+            if (isCodeValid(user.getPhone(), path)) {
                 redisTemplate.delete(user.getPhone());
                 return new Result(Code.UPDATE_OK, null, Msg.UPDATE_OK);
             }
@@ -308,8 +346,21 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         return result == null ? null : result.getMail();
     }
 
-    public Boolean CodeCheck(String mail, String code) {
-        String redisCode = redisTemplate.opsForValue().get(mail);
+    public Boolean CodeCheck(String key, String code) {
+        return isCodeValid(key, code);
+    }
+
+    /**
+     * 统一验证码校验：优先比对 Redis 中的真实验证码；
+     * 若万能验证码开关开启（code.master-enabled），masterCode（默认 000000）可直接通过。
+     * 覆盖场景：登录（邮箱验证码）、注册（邮箱验证码）、找回密码（重置链接中的验证码）。
+     */
+    private boolean isCodeValid(String redisKey, String code) {
+        if (masterCodeEnabled && masterCode != null && masterCode.equals(code)) {
+            log.warn("万能验证码通过校验（测试便利功能，生产环境请关闭）: key={}", redisKey);
+            return true;
+        }
+        String redisCode = redisTemplate.opsForValue().get(redisKey);
         return Objects.equals(code, redisCode);
     }
 

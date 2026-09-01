@@ -3,6 +3,7 @@ package com.cloudland.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.cloudland.Interceptor.MyInterceptor;
 import com.cloudland.controller.result.Code;
 import com.cloudland.controller.result.Msg;
 import com.cloudland.controller.result.Result;
@@ -20,6 +21,7 @@ import com.cloudland.service.ITrolleyService;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
+import javax.servlet.http.HttpServletRequest;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -32,6 +34,8 @@ public class TrolleyServiceImpl extends ServiceImpl<TrolleyMapper, Trolley> impl
     private ProductMapper productMapper;
     @Resource
     private CloudLandFileMapper cloudLandFileMapper;
+    @Resource
+    private HttpServletRequest request;
 
     @Override
     public Result selectTrolley(User user) {
@@ -73,6 +77,16 @@ public class TrolleyServiceImpl extends ServiceImpl<TrolleyMapper, Trolley> impl
 
     @Override
     public Result deleteTrolley(Integer id) {
+        // 归属校验：普通用户只能删除自己的购物车条目；员工/管理员不受限
+        Trolley trolley = this.baseMapper.selectById(id);
+        if (trolley != null) {
+            Integer uid = (Integer) request.getAttribute(MyInterceptor.ATTR_USER_ID);
+            Integer power = (Integer) request.getAttribute(MyInterceptor.ATTR_USER_POWER);
+            boolean isStaff = power != null && power >= 1;
+            if (!isStaff && (uid == null || !uid.equals(trolley.getUId()))) {
+                return new Result(Code.POWER_ERR, null, Msg.POWER_ERR);
+            }
+        }
         this.baseMapper.deleteById(id);
         return new Result(Code.DELETE_OK, null, Msg.DELETE_OK);
     }

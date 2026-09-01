@@ -3,6 +3,7 @@ package com.cloudland.service;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.cloudland.controller.result.Result;
 import com.cloudland.pojo.User;
+import com.cloudland.pojo.dto.UpdatePasswordDTO;
 import com.baomidou.mybatisplus.extension.service.IService;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -21,6 +22,7 @@ public interface IUserService extends IService<User> {
     Result save(MultipartFile file, User user);
     Result delete(Integer[] ids);
     Result update(MultipartFile userIcon, User user,HttpServletRequest request);
+    Result updatePassword(UpdatePasswordDTO dto, HttpServletRequest request);
     IPage<User> selectPage(int pageNum, int pageSize, User user);
     Result sendOutEmail(User user) throws Exception;
     Result forgetPassword(User user,String path) throws Exception;

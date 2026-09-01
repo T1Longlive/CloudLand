@@ -1,46 +1,18 @@
 <template>
   <div>
-    <!--导航栏-->
-    <header class="header fixed-top">
-      <div class="container">
-        <div class="row align-items-center">
-          <a href="/#home" class="logo mr-auto"> <img src="../assets/images/cloud.png" class="couldLogo" alt=""> 云用地
-          </a>
-          <nav class="nav">
-            <a href="/#home">首页</a>
-            <a href="/#about">介绍</a>
-            <a href="/#menu">功能</a>
-            <a href="/#contact">联系我们</a>
-            <a href="/#newsletter">订阅</a>
-            <a href="/backend">后台</a>
-          </nav>
-          <div class="icons">
-            <div id="menu-btn" class="fas fa-bars"></div>
-            <div id="login-btn" class="fas fa-user" @click="isLoginVisible=true"
-                 v-show="user.id===null||user.username===null"></div>
-            <div id="user-msg" v-show="user.id!==null&&user.username!==null" @click="openDialog">
-              欢迎您，{{ user.username }}
-              <el-image
-                  style="width: 40px; height: 40px;background-color: white;border-radius: 5px;"
-                  v-if="user.img!==null"
-                  :src="filePath+user.img"
-              ></el-image>
-            </div>
-          </div>
-        </div>
-      </div>
-    </header>
-    <!--导航栏结束-->
-    <div class="login-form" v-show="isLoginVisible">
+    <!--登录表单-->
+    <div class="login-form" v-show="loginVisible">
       <form action="">
-        <div id="close-login-form" class="fas fa-times" @click="isLoginVisible=false"></div>
-        <a href="#" class="logo mr-auto"> <img src="../assets/images/cloud.png" class="couldLogo" alt=""> 云用地 </a>
+        <div id="close-login-form" class="fas fa-times" v-if="frond" @click="loginVisible=false"></div>
+        <a href="#" class="logo mr-auto">
+          <img src="../assets/images/cloud.png" class="couldLogo" alt=""> {{ systemName }}
+        </a>
         <h3>让世界更有价值</h3>
-        <input placeholder="请输入你的手机号" id="1" class="box" minlength="11" maxlength="11" v-model="user.phone">
-        <input type="password" placeholder="请输入你的密码" id="12" class="box" minlength="6" maxlength="20"
+        <input placeholder="请输入你的手机号" class="box" minlength="11" maxlength="11" v-model="user.phone">
+        <input type="password" placeholder="请输入你的密码" class="box" minlength="6" maxlength="20"
                v-model="user.password">
         <div class="abc"></div>
-        <input placeholder="请输入你的验证码" id="9" minlength="6" maxlength="6" class="box" v-model="code" style="width: 60%">
+        <input placeholder="请输入你的验证码" minlength="6" maxlength="6" class="box" v-model="code" style="width: 60%">
         <button type="button"
                 class="link-btn-mail"
                 style="width: 40%"
@@ -50,23 +22,29 @@
         >
           {{ buttonLabel }}
         </button>
-        <div class="flex">
-          <input type="checkbox" name="" id="remember-me">
+        <div class="flex" v-if="frond">
+          <input type="checkbox" id="remember-me" v-model="remember">
           <label for="remember-me">记住我</label>
-          <div class="mail" @click="forgetPassword()" :class="{ 'disabled2': isCounting2 }">   {{ buttonLabel2 }} </div>
+          <div class="mail" @click="forgetPassword()" :class="{ 'disabled2': isCounting2 }">{{ buttonLabel2 }}</div>
         </div>
         <button type="button" class="link-btn" @click="LoginUp">登录</button>
-        <p class="account">没有账号? <a href="#" @click="isLoginVisible=false;isRegisterVisible=true;">注册一个!</a></p>
+        <p class="account" v-if="frond">
+          没有账号?
+          <a href="#" @click="switchToRegister">注册一个!</a>
+        </p>
+        <p class="account" v-else>云用地后台系统需要二级账号，若没有可联系我们申请</p>
       </form>
     </div>
-    <!--    注册表单  :visible.sync="isRegisterVisible"-->
-    <div class="register-form" v-show="isRegisterVisible">
-      <div id="close-register-form" class="fas fa-times" @click="isRegisterVisible=false"></div>
-      <form action="" ref="form">
-        <a href="#" class="logo mr-auto"> <img src="../assets/images/cloud.png" class="couldLogo" alt=""> 云用地 </a>
+    <!--注册表单（仅前台）-->
+    <div class="register-form" v-show="frond && registerVisible">
+      <div id="close-register-form" class="fas fa-times" @click="registerVisible=false"></div>
+      <form action="">
+        <a href="#" class="logo mr-auto">
+          <img src="../assets/images/cloud.png" class="couldLogo" alt=""> {{ systemName }}
+        </a>
         <h3>让世界更有价值</h3>
-        <input placeholder="请输入用户名(2-10个字符)" id="4" class="box" minlength="2" maxlength="10" v-model="user.username">
-        <input placeholder="请输入手机号" id="5" class="box" minlength="11" maxlength="11" v-model="user.phone">
+        <input placeholder="请输入用户名(2-10个字符)" class="box" minlength="2" maxlength="10" v-model="user.username">
+        <input placeholder="请输入手机号" class="box" minlength="11" maxlength="11" v-model="user.phone">
         <input type="password" placeholder="请设置你的密码(6-20位)" class="box" minlength="6" maxlength="20"
                v-model="user.password">
         <input placeholder="请输入你的年龄" class="box" minlength="2" maxlength="3" v-model="user.age">
@@ -77,9 +55,10 @@
             v-model="selectedOptions"
             filterable class="box"></el-cascader>
         <input placeholder="请输入你的详细地址" class="box" v-model="user.detailedAddress">
-        <p class="account">！注册即表示同意我们的协议- <a href="#" @click="isLoginVisible=false;isRegisterVisible=true;">《云用地协议》</a>
+        <p class="account">！注册即表示同意我们的协议-
+          <a href="#" @click="switchToRegister">《云用地协议》</a>
         </p>
-        <input placeholder="请输入你的验证码" id="6" class="box" minlength="6" maxlength="6" v-model="code" style="width: 57%">
+        <input placeholder="请输入你的验证码" minlength="6" maxlength="6" class="box" v-model="code" style="width: 57%">
         <button type="button"
                 class="link-btn-mail"
                 style="width: 43%"
@@ -91,7 +70,7 @@
         </button>
         <div class="abc">
           <button type="button" class="link-btn" style="width: 40%"
-                  @click="isLoginVisible=true;isRegisterVisible=false;">返回登录
+                  @click="loginVisible=true;registerVisible=false;">返回登录
           </button>
           <button type="button" class="link-btn" @click="register" style="width: 40%">确认注册</button>
         </div>
@@ -100,12 +79,9 @@
   </div>
 </template>
 <script>
-import {myFunction} from '@/assets/js/script';
 import axiosInstance from "@/request/axiosInstance";
-import router from "@/router";
-import {regionData} from "element-china-area-data";
 import {APP_CONFIG} from "@/config/app";
-import {createEmptyUser, fetchCurrentUser, loginWithPassword} from "@/utils/auth";
+import {createEmptyUser, loginWithPassword} from "@/utils/auth";
 
 const PHONE_REGEX = /^1[3-9]\d{9}$/;
 const USERNAME_REGEX = /^\S{2,10}$/;
@@ -115,8 +91,24 @@ const DETAIL_ADDRESS_REGEX = /^\S{5,}$/;
 const CODE_REGEX = /^\S{6}$/;
 const HAS_SPACE_REGEX = /\s/;
 
+/**
+ * 统一登录/注册表单（原 Top.vue 与后台 MainView.vue 三份复制代码合并）
+ * - frond=true：前台模式（登录 + 注册 + 忘记密码 + 记住我）
+ * - frond=false：后台模式（仅登录，二级账号提示，不可关闭）
+ * 登录成功后 emit('login-success', user)，由父组件处理各自的后续逻辑
+ */
 export default {
-  name: "Top",
+  name: "LoginForm",
+  props: {
+    frond: {
+      type: Boolean,
+      default: true
+    },
+    systemName: {
+      type: String,
+      default: '云用地'
+    }
+  },
   data() {
     return {
       code: null,
@@ -126,13 +118,11 @@ export default {
       countdownInterval2: null,
       countdown: 59,
       countdown2: 59,
-      options: regionData,
+      options: [],
       selectedOptions: [],
-      imgFileList: [],
       remember: false,
-      isLoginVisible: false,
-      isRegisterVisible: false,
-      filePath: APP_CONFIG.resourceUrls.userFile,
+      loginVisible: false,
+      registerVisible: false,
       Path: APP_CONFIG.forgetPasswordPath,
       user: createEmptyUser()
     };
@@ -146,26 +136,35 @@ export default {
     }
   },
   watch: {
-    isLoginVisible(newVisibility) {
+    loginVisible(newVisibility) {
       if (!newVisibility) {
-        this.onLoginFormClose();
+        this.onFormHide();
       }
     },
-    isRegisterVisible(newVisibility) {
+    registerVisible(newVisibility) {
       if (!newVisibility) {
-        this.onLoginFormClose();
+        this.onFormHide();
       }
     },
-  },
-  mounted() {
-    myFunction();
-    this.openCheck();
   },
   beforeDestroy() {
     this.resetCodeCountdown();
     this.resetForgetPasswordCountdown();
   },
   methods: {
+    open() {
+      this.user = createEmptyUser();
+      this.loginVisible = true;
+    },
+    // 切换到注册表单，并按需懒加载省市区数据（约 100KB，避免拖慢首屏）
+    async switchToRegister() {
+      this.loginVisible = false;
+      this.registerVisible = true;
+      if (this.options.length === 0) {
+        const {regionData} = await import('element-china-area-data');
+        this.options = regionData;
+      }
+    },
     notifyInfo(message, title = '系统提示') {
       this.$notify.info({
         title,
@@ -294,21 +293,21 @@ export default {
         return;
       }
       if (this.isCounting || this.isCounting2) {
-        alert("请稍后再试!");
+        this.$message.warning("请稍后再试!");
         return;
       }
       this.startForgetPasswordCountdown();
       const formData = new FormData();
       formData.append('user', JSON.stringify(this.user));
       formData.append('path', this.Path);
-      alert("我们将发送一封邮箱验证链接注意查收!请按照上面指示重置密码。");
+      this.$message.info("我们将发送一封邮箱验证链接注意查收!请按照上面指示重置密码。");
       const {data: res} = await axiosInstance.post('/user/forgetPassword', formData);
       if (res.code === 30001) {
-        alert("发送成功！重置链接5分钟内有效（注：该链接只生效一次！）");
+        this.$message.success("发送成功！重置链接5分钟内有效（注：该链接只生效一次！）");
         return;
       }
       this.resetForgetPasswordCountdown();
-      alert("发送失败！请检查你的邮箱是否有效");
+      this.$message.error("发送失败！请检查你的邮箱是否有效");
     },
     checkFrom(condition, code) {
       if (!this.validatePhone() || !this.validatePassword()) {
@@ -322,27 +321,13 @@ export default {
       }
       return "pass";
     },
-    async openCheck() {
-      this.user = createEmptyUser();
-      const {user, res: authRes} = await fetchCurrentUser(true);
-      if (!user) {
-        if (authRes && authRes.code !== 503) {
-          this.notifyInfo(`${authRes.msg}!`, '登录提示');
-        }
-        return;
-      }
-      this.user = user;
-      this.isLoginVisible = false;
-    },
     async LoginUp() {
       if (this.checkFrom(false, true) !== "pass") {
         return;
       }
-      const checkbox = document.getElementById("remember-me");
-      this.remember = Boolean(checkbox && checkbox.checked);
       const {user, res: loginRes} = await loginWithPassword(this.user, {
-        frond: true,
-        remember: this.remember,
+        frond: this.frond,
+        remember: this.frond && this.remember,
         code: this.code
       });
       if (!user) {
@@ -351,14 +336,10 @@ export default {
         return;
       }
       this.resetCodeCountdown();
-      this.user = user;
-      this.isLoginVisible = false;
+      this.loginVisible = false;
       this.code = null;
-      this.notifySuccess(`欢迎你，${this.user.username}`);
-      const currentRoute = router.currentRoute;
-      if (currentRoute && currentRoute.path !== '/') {
-        await router.push({path: '/'});
-      }
+      this.notifySuccess(`欢迎你，${user.username}`);
+      this.$emit('login-success', user);
     },
     async register() {
       if (this.checkFrom(true, true) !== "pass") {
@@ -377,92 +358,78 @@ export default {
       if (res.code === 20006) {
         this.notifyInfo(`${res.msg}!`);
         this.resetCodeCountdown();
-        this.isRegisterVisible = false;
+        this.registerVisible = false;
         this.code = null;
-        this.isLoginVisible = true;
+        this.loginVisible = true;
         return;
       }
       this.notifyInfo(`${res.msg}!`);
       this.code = null;
     },
-    ImgHandChange(file, fileList) {
-      this.imgFileList = fileList;
-    },
-    ImgHandleRemove(file, fileList) {
-      this.imgFileList = fileList;
-    },
-    onLoginFormClose() {
+    onFormHide() {
       this.code = null;
       this.selectedOptions = [];
     },
     async sendCode() {
       this.code = null;
-      if (this.checkFrom(this.isRegisterVisible, false) !== "pass") {
+      if (this.checkFrom(this.frond && this.registerVisible, false) !== "pass") {
         return;
       }
       if (this.isCounting || this.isCounting2) {
-        alert("请稍后再试!");
+        this.$message.warning("请稍后再试!");
         return;
       }
       this.startCodeCountdown();
       const {data: res} = await axiosInstance.post('/user/code', this.user);
-      console.log("状态码为",res.code);
       if (res.code === 30001) {
-        alert("发送成功！验证码5分钟内有效");
+        this.$message.success("发送成功！验证码5分钟内有效");
         return;
       }
       this.resetCodeCountdown();
-      alert("发送失败！请检查你的邮箱是否有效");
-    },
-    openDialog() {
-      router.push({path: '/user'}).then(() => null);
+      this.$message.error("发送失败！请检查你的邮箱是否有效");
     }
   }
 }
 </script>
 
-<style lang="less">
+<style lang="less" scoped>
 #remember-me {
-  accent-color: #105147;
-}
-
-.el-icon-user-solid {
-  //font-weight: bolder;
-  font-size: 2rem;
+  accent-color: var(--color-primary);
 }
 
 .link-btn-mail {
   width: 100%;
   padding: 1.2rem 1.4rem;
-  border: 0.1rem solid #105147;
-  border-left: none; /* 移除左边框 */
+  border: 0.1rem solid var(--color-primary);
+  border-left: none; /* 移除左边框，与左侧验证码输入框拼合 */
   font-size: 1.6rem;
   margin: 1rem 0;
 }
 
 .link-btn-mail:hover {
-  background: #105147;
+  background: var(--color-primary);
   color: #fff;
 }
 
 .disabled {
-  background: #105147;
+  background: var(--color-primary);
   color: #fff;
   cursor: not-allowed;
 }
+
 .disabled2 {
   color: #a1a1a1;
 }
 
 .mail {
   font-size: 1.5rem;
-  color: #105147;
+  color: var(--color-primary);
   margin-left: auto;
-  cursor: pointer; /* 将鼠标指针设置为手型指针 */
+  cursor: pointer;
 }
 
 .mail:hover {
-  color: #FF0000; /* 设置鼠标悬停时的颜色，您可以将 #FF0000 替换为所需的颜色代码 */
+  color: var(--color-danger);
 }
 
 .abc {
@@ -484,35 +451,44 @@ export default {
   padding: 2rem;
 }
 
-
 .register-form form {
-  position: relative; /* 相对定位 */
+  position: relative;
   width: 50rem;
   padding: 4rem;
   background: #fff;
   text-align: center;
   animation: fadeIn .2s linear;
-  max-height: 80vh; /* 设置表单最大高度为屏幕视窗高度的80% */
-  overflow-y: auto; /* 启用垂直滚动条 */
+  max-height: 80vh;
+  overflow-y: auto;
 }
 
 #close-register-form {
-  position: absolute; /* 绝对定位 */
+  position: absolute;
   top: 20px;
   right: 20px;
   font-size: 26px;
   cursor: pointer;
   color: #fff;
+  transition: transform 0.5s;
 }
 
 #close-register-form:hover {
   transform: rotate(90deg);
 }
 
+#close-login-form {
+  font-size: 24px;
+  cursor: pointer;
+  transition: transform 0.5s;
+}
+
+#close-login-form:hover {
+  transform: rotate(90deg);
+}
 
 .register-form form .logo {
   font-size: 2.5rem;
-  color: #105147;
+  color: var(--color-primary);
   font-weight: bolder;
 }
 
@@ -527,17 +503,13 @@ export default {
 .register-form form .box {
   width: 100%;
   padding: 1.2rem 1.4rem;
-  border: 0.1rem solid #105147;
+  border: 0.1rem solid var(--color-primary);
   font-size: 1.6rem;
   margin: 1rem 0;
 }
 
 .register-form form .flex {
-  display: -webkit-box;
-  display: -ms-flexbox;
   display: flex;
-  -webkit-box-align: center;
-  -ms-flex-align: center;
   align-items: center;
   gap: .5rem;
   margin: 1rem 0;
@@ -553,7 +525,7 @@ export default {
 
 .register-form form .flex a {
   font-size: 1.5rem;
-  color: #105147;
+  color: var(--color-primary);
   margin-left: auto;
 }
 
@@ -576,50 +548,15 @@ export default {
 }
 
 .register-form form .account a {
-  color: #105147;
+  color: var(--color-primary);
 }
 
 .register-form form .account a:hover {
   text-decoration: underline !important;
 }
 
-#close-register-form {
-  font-size: 24px;
-  cursor: pointer;
-  transition: transform 0.5s;
-}
-
-#close-register-form:hover {
-  animation: rotate 0.5s linear;
-}
-
-#close-login-form {
-  font-size: 24px;
-  cursor: pointer;
-  transition: transform 0.5s;
-}
-
-#close-login-form:hover {
-  animation: rotate 0.5s linear;
-}
-
-@keyframes rotate {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(90deg);
-  }
-}
-
-.el-input__inner {
+/* 注册表单内的级联选择器：边框由外层 .box 提供，内层输入框去边框 */
+.register-form ::v-deep .el-input__inner {
   border: none !important;
-  font-size: 1.3rem !important;
-  font-weight: bolder !important;
 }
-
-.el-cascader-node.in-active-path, .el-cascader-node.is-active, .el-cascader-node.is-selectable.in-checked-path {
-  color: #0c5460 !important;
-}
-
 </style>

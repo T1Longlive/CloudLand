@@ -6,18 +6,12 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.cloudland.controller.result.Code;
 import com.cloudland.controller.result.Result;
-import com.cloudland.mapper.MsgMapper;
-import com.cloudland.mapper.MsgSendMapper;
-import com.cloudland.pojo.*;
-import com.cloudland.pojo.vo.LandVO;
-import com.cloudland.service.ILandService;
+import com.cloudland.pojo.Msg;
+import com.cloudland.pojo.MsgSend;
 import com.cloudland.service.IMsgSendService;
 import com.cloudland.service.IMsgService;
-import com.cloudland.service.impl.MsgServiceImpl;
 
 import org.springframework.web.bind.annotation.*;
-
-import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
 import java.time.LocalDateTime;

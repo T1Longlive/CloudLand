@@ -35,3 +35,5 @@ build/
 ### 鏁忔劅閰嶇疆锛堝惈鐪熷疄鍑嵁锛岃鍕挎彁浜わ級 ###
 .env
 config/application-local.yml
+### AI 助手本地目录 ###
+.workbuddy/

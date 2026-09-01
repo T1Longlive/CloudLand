@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.cloudland.Interceptor.MyInterceptor;
 import com.cloudland.controller.result.Code;
 import com.cloudland.controller.result.Msg;
 import com.cloudland.controller.result.Result;
@@ -28,8 +29,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
+import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -50,11 +53,31 @@ public class Order2ServiceImpl extends ServiceImpl<Order2Mapper, Order2> impleme
     private OrderExporter orderExporter;
     @Resource
     private DownloadUtil downloadUtil;
+    @Resource
+    private HttpServletRequest request;
 
     @Resource
     private StringRedisTemplate stringRedisTemplate;
 
     private static final String TRADE_KEY_PREFIX = "alipay:trade:";
+
+    /** 当前登录用户 ID（由 MyInterceptor 注入；免认证路径下为 null） */
+    private Integer currentUserId() {
+        Object id = request.getAttribute(MyInterceptor.ATTR_USER_ID);
+        return id instanceof Integer ? (Integer) id : null;
+    }
+
+    /** 当前登录用户权限（0 客户 / 1 员工 / 2 管理员） */
+    private Integer currentUserPower() {
+        Object power = request.getAttribute(MyInterceptor.ATTR_USER_POWER);
+        return power instanceof Integer ? (Integer) power : null;
+    }
+
+    /** 是否具备后台管理权限（power >= 1） */
+    private boolean isStaff() {
+        Integer power = currentUserPower();
+        return power != null && power >= 1;
+    }
 
     @Override
     public IPage<OrderVO> selectPage(int pageNum, int pageSize, Order2 order) {
@@ -78,6 +101,11 @@ public class Order2ServiceImpl extends ServiceImpl<Order2Mapper, Order2> impleme
     }
 
     public Result selectOrder(User user) {
+        // 归属校验：普通用户只能查看自己的订单；员工/管理员可按传入 id 查询
+        Integer uid = currentUserId();
+        if (!isStaff() && uid != null) {
+            user.setId(uid);
+        }
         QueryWrapper<Order2> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("u_id", user.getId());
         queryWrapper.eq("del", 0);
@@ -159,6 +187,14 @@ public class Order2ServiceImpl extends ServiceImpl<Order2Mapper, Order2> impleme
     @Transactional(rollbackFor = Exception.class)
     public Result deleteOrder(Integer id) {
         Order2 order = orderMapper.selectById(id);
+        if (order == null) {
+            return new Result(Code.DELETE_ERR, null, Msg.DELETE_ERR);
+        }
+        // 归属校验：普通用户只能删除自己的订单；员工/管理员可删除任意订单（后台管理能力）
+        Integer uid = currentUserId();
+        if (!isStaff() && (uid == null || !uid.equals(order.getUId()))) {
+            return new Result(Code.POWER_ERR, null, Msg.POWER_ERR);
+        }
         if (order.getPayTime() != null && order.getStatus() == 1) {
             order.setDel(1);
             orderMapper.updateById(order);
@@ -180,7 +216,52 @@ public class Order2ServiceImpl extends ServiceImpl<Order2Mapper, Order2> impleme
     }
 
     @Override
+    public BigDecimal calcTotalAmount(Integer[] orderIds) {
+        if (orderIds == null || orderIds.length == 0) {
+            throw new RuntimeException("未选择订单");
+        }
+        BigDecimal total = BigDecimal.ZERO;
+        for (Integer orderId : orderIds) {
+            Order2 order = orderMapper.selectById(orderId);
+            if (order == null) {
+                throw new RuntimeException("订单不存在: orderId=" + orderId);
+            }
+            // 仅允许未支付订单参与支付（防已支付/已退单订单重复支付）
+            if (order.getStatus() == null || order.getStatus() != 0) {
+                throw new RuntimeException("订单状态异常，仅未支付订单可支付: orderId=" + orderId);
+            }
+            if (order.getNum() != null && order.getNum() == -1) {
+                // 土地订单：整块地一单一租，金额 = land.price（与 selectOrder 的 OrderVO.price 组装规则一致）
+                LandVO land = landMapper.selectById(order.getPId());
+                if (land == null || land.getPrice() == null) {
+                    throw new RuntimeException("土地信息异常: landId=" + order.getPId());
+                }
+                total = total.add(BigDecimal.valueOf(land.getPrice()));
+            } else {
+                // 产品订单：金额 = product.price × num
+                Product product = productMapper.selectById(order.getPId());
+                if (product == null || product.getPrice() == null || order.getNum() == null) {
+                    throw new RuntimeException("产品信息异常: productId=" + order.getPId());
+                }
+                total = total.add(BigDecimal.valueOf(product.getPrice())
+                        .multiply(BigDecimal.valueOf(order.getNum())));
+            }
+        }
+        return total;
+    }
+
+    @Override
     public void saveTradeMapping(String outTradeNo, Integer[] orderIds) {
+        // 归属校验：普通用户只能支付自己的订单；员工/管理员可代支付任意订单
+        Integer uid = currentUserId();
+        if (!isStaff() && uid != null) {
+            for (Integer orderId : orderIds) {
+                Order2 order = orderMapper.selectById(orderId);
+                if (order == null || !uid.equals(order.getUId())) {
+                    throw new RuntimeException("订单归属校验失败: orderId=" + orderId);
+                }
+            }
+        }
         try {
             String json = new ObjectMapper().writeValueAsString(orderIds);
             stringRedisTemplate.opsForValue().set(TRADE_KEY_PREFIX + outTradeNo, json, 30, TimeUnit.MINUTES);
@@ -205,6 +286,11 @@ public class Order2ServiceImpl extends ServiceImpl<Order2Mapper, Order2> impleme
 
     @Transactional(rollbackFor = Exception.class)
     public Result addOrder(Order2 order) {
+        // 归属校验：普通用户只能为自己下单；员工/管理员可代录订单
+        Integer uid = currentUserId();
+        if (!isStaff() && uid != null) {
+            order.setUId(uid);
+        }
         if (order.getNum() == -1) {
             LandVO landVO = landMapper.selectById(order.getPId());
             if (landVO.getStatus() == 0) {

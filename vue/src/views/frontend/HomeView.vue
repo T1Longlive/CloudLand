@@ -1,6 +1,6 @@
 <template>
   <div>
-    <TopBer></TopBer>
+    <NavBar mode="home"></NavBar>
     <!-- home section starts  -->
     <section class="home" id="home">
       <div class="container">
@@ -145,12 +145,12 @@
   </div>
 </template>
 <script>
-import TopBer from "@/components/Top";
+import NavBar from "@/components/NavBar";
 import axiosInstance from "@/request/axiosInstance";
 
 export default {
   components: {
-    TopBer,
+    NavBar,
   },
   data() {
     return {
@@ -166,12 +166,6 @@ export default {
         id: null,
         mail: null
       }
-    }
-  },
-  mounted() {
-    if (sessionStorage.getItem("replace") === "1") {
-      sessionStorage.setItem("replace", "0");
-      location.reload();
     }
   },
   methods: {
@@ -316,24 +310,25 @@ export default {
   }
 }
 </script>
-<style>
+<style scoped>
 .link-btn2 {
   width: 180px;
   padding: 1rem 3rem;
   display: inline-block;
-  border: 0.1rem solid #105147;
-  color: #105147;
+  border: 0.1rem solid var(--color-primary);
+  color: var(--color-primary);
   background: none;
   cursor: pointer;
   font-size: 1.7rem;
 }
 
 .link-btn2:hover {
-  background: #105147;
+  background: var(--color-primary);
   color: #fff;
 }
-.bigModel{
-  background-color: rgba(210, 222, 214, 0.45);;
+
+.bigModel {
+  background-color: rgba(210, 222, 214, 0.45);
   width: 80px;
   height: 40px;
   position: fixed;
@@ -344,36 +339,16 @@ export default {
   display: flex;
   justify-content: center;
   align-items: center;
-  text-align: center; /* 水平居中 */
-  vertical-align: middle; /* 垂直居中 */
+  text-align: center;
+  vertical-align: middle;
   font-size: 1.3rem;
   font-weight: bolder;
   cursor: pointer;
   color: #252424 !important;
 }
-.bigModel:hover{
-  background-color:  rgba(16, 81, 71, 0.8);
-  color: white !important;
-}
-.el-notification.left {
-  top: 50vh !important;
-  right: 50vw !important;
-}
 
-.el-notification {
-  background-color: rgba(16, 81, 71, 0.8) !important;
-  backdrop-filter: blur(10px) !important;
-  border: none !important;
-  top: 35% !important; /* 垂直居中 */
-  right: 50% !important; /* 水平居中 */
-  transform: translate(50%, -50%) !important; /* 通过平移调整位置 */
-}
-
-.el-notification__title {
-  color: white !important;
-}
-
-.el-notification__content {
+.bigModel:hover {
+  background-color: rgba(var(--color-primary-rgb), 0.8);
   color: white !important;
 }
 </style>

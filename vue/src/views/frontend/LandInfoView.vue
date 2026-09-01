@@ -1,6 +1,6 @@
 <template>
   <div class="landInfo">
-    <TopBer></TopBer>
+    <NavBar mode="page"></NavBar>
     <div class="landInfo-main">
       <div class="landInfo-img">
         <div class="block">
@@ -76,13 +76,13 @@
 <script>
 import {CodeToText, regionData} from "element-china-area-data";
 import axiosInstance from "@/request/axiosInstance";
-import TopBer from "@/components/Top2";
+import NavBar from "@/components/NavBar";
 import {APP_CONFIG} from "@/config/app";
 
 export default {
   name: "LandInfoView",
   components: {
-    TopBer,
+    NavBar,
   },
   data() {
     return {
@@ -136,10 +136,6 @@ export default {
 
   },
   async mounted() {
-    if (sessionStorage.getItem("replace") === "1") {
-      sessionStorage.setItem("replace", "0");
-      location.reload();
-    }
     this.address = regionData
     await this.selectLand();
   },
@@ -160,7 +156,7 @@ export default {
           if (choose === 1) {
             await this.$router.push('/user/myTrolley');
           } else {
-            alert("该商品已在购物车里了哦, 请勿重复添加!")
+            this.$message.warning("该商品已在购物车里了哦, 请勿重复添加!")
           }
           return
         }
@@ -181,7 +177,7 @@ export default {
       } else if (res.code === 10001 && choose === 1) {
         await this.$router.push('/user/myTrolley');
       } else {
-        alert("网络繁忙,请重试!")
+        this.$message.error("网络繁忙,请重试!")
         location.reload();
       }
     }
@@ -189,94 +185,33 @@ export default {
 }
 </script>
 
-<style>
+<style scoped>
 .link-btn2 {
   width: 180px;
   padding: 1rem 3rem;
   display: inline-block;
-  border: 0.1rem solid #105147;
-  color: #105147;
+  border: 0.1rem solid var(--color-primary);
+  color: var(--color-primary);
   background: none;
   cursor: pointer;
   font-size: 1.7rem;
 }
 
 .link-btn2:hover {
-  background: #105147;
+  background: var(--color-primary);
   color: #fff;
 }
 
+/* 操作按钮容器（原依赖 ProductInfoView 的全局样式，现收敛为本页自有） */
 .productInfo-msg-4-2 {
   display: flex;
-  justify-content: flex-end;
   gap: 20px;
 }
-
-.user-user-msg {
-  font-size: 1.5rem;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 10px;
-}
-
 
 .landInfo {
   width: 100vw;
   height: 100vh;
   background-color: #ffffff;
-}
-
-.landInfo-top {
-  width: 100%;
-  height: 13vh;
-  background-color: #105147;
-}
-
-.landInfo-top-msg {
-  width: 80%;
-  height: 100%;
-  background-color: #105147;
-  margin: auto;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-width: 900px;
-}
-
-.landInfo-top-msg > a:hover {
-  color: #71918b;
-}
-
-.logo {
-  display: inline-block; /* 可选：使链接元素变成块级元素，以便设置宽度等属性 */
-  font-size: 2.5rem;
-  color: #fff;
-  font-weight: bolder;
-  padding-left: 1vw;
-}
-
-.landInfo-top-msg-right {
-  font-weight: bold;
-  font-size: 1.5rem;
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.landInfo-top-msg-right > a {
-  margin-right: 30px;
-  color: #fff;
-}
-
-.landInfo-top-msg-right > a:hover {
-  color: #71918b;
-}
-
-#uImg:hover {
-  border: none;
-  box-shadow: 2px 2px 5px rgba(23, 20, 20, 0.8);
 }
 
 .landInfo-main {
@@ -287,7 +222,7 @@ export default {
   min-width: 1000px;
   justify-content: space-between;
   padding: 20px;
-  border: 2px solid #bebebe;
+  border: 2px solid var(--color-border);
   border-top: none;
   gap: 30px;
   min-height: 600px;
@@ -302,24 +237,11 @@ export default {
   gap: 50px;
 }
 
-.landInfo-msg {
-  flex: 1;
-  height: 100%;
-}
-
 .land-Card {
   display: flex;
   flex-direction: column;
   height: 230px;
-  border: 1px solid #bebebe;
-}
-
-.el-carousel__item h3 {
-  color: #475669;
-  font-size: 14px;
-  opacity: 0.75;
-  line-height: 150px;
-  margin: 0;
+  border: 1px solid var(--color-border);
 }
 
 .land-Card-1 {
@@ -328,30 +250,30 @@ export default {
   align-items: center;
   padding: 20px;
   height: 35%;
-  border-bottom: 1px dashed #bebebe;
+  border-bottom: 1px dashed var(--color-border);
 }
 
 .land-Card-1 > h2 {
   font-size: 1.5rem;
   font-weight: bolder;
-  color: #2cb7c0;
+  color: var(--color-accent);
 }
 
 .land-Card-1-2 {
   display: flex;
-  justify-content: center; /* 水平居中 */
-  align-items: center; /* 垂直居中 */
+  justify-content: center;
+  align-items: center;
   width: 60px;
   height: 30px;
   color: #000000;
   background-color: #ffffff;
   border-radius: 2px;
-  cursor: pointer; /* 鼠标小手效果 */
+  cursor: pointer;
 }
 
 .land-Card-1-2:hover {
   color: #ffffff;
-  background-color: #105147;
+  background-color: var(--color-primary);
 }
 
 .land-Card-2 {
@@ -370,41 +292,20 @@ export default {
 }
 
 .landInfo-msg {
+  flex: 1;
+  height: 100%;
   display: flex;
   flex-direction: column;
 }
 
 .landInfo-msg-1 {
   display: flex;
-  height: 15%;
-}
-
-.landInfo-msg-2 {
-  display: flex;
-  height: 20%;
-}
-
-.landInfo-msg-4 {
-  display: flex;
-  flex-direction: column;
   padding: 20px;
-  height: 55%;
-  gap: 10px;
-  border-bottom: 1px solid #bebebe;
-}
-
-.landInfo-msg-4 > p {
-  color: #fd0000;
-}
-
-.landInfo-msg-1 {
-  display: flex;
-  padding: 20px;
-  color: #2cb7c0;
+  color: var(--color-accent);
   font-weight: bolder;
   font-size: 2rem;
   align-items: flex-end;
-  border-bottom: 1px solid #bebebe;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .landInfo-msg-2 {
@@ -415,7 +316,7 @@ export default {
   font-size: 1.2rem;
   font-weight: bolder;
   color: #404749;
-  border-bottom: 1px solid #bebebe;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .landInfo-msg-2-1 {
@@ -424,7 +325,6 @@ export default {
   height: 50%;
   gap: 20px;
 }
-
 
 .landInfo-msg-2-2 {
   display: flex;
@@ -442,7 +342,7 @@ export default {
   display: flex;
   padding: 20px;
   gap: 20%;
-  border-bottom: 1px solid #bebebe;
+  border-bottom: 1px solid var(--color-border);
   height: 30%;
   font-size: 1.1rem;
   font-weight: bolder;
@@ -457,42 +357,24 @@ export default {
   width: 50%;
 }
 
+.landInfo-msg-4 {
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  height: 55%;
+  gap: 10px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.landInfo-msg-4 > p {
+  color: #fd0000;
+}
+
 .landInfo-msg-4-1 {
   display: flex;
   flex-direction: column;
   font-size: 1.2rem;
   font-weight: bolder;
   color: #404749;
-}
-.el-button--primary {
-  background-color: #ffffff;
-  border-color: #000000;
-  color: black;
-}
-
-.el-button--primary.is-plain {
-  background-color: #ffffff;
-  border-color: #000000;
-  color: black;
-}
-
-.el-button--primary:focus, .el-button--primary:hover {
-  background-color: #105147;
-  border-color: #105147;
-}
-.el-button--primary.is-plain:focus, .el-button--primary.is-plain:hover {
-  background-color: #105147;
-  border-color: #105147;
-}
-
-
-.el-button:hover{
-  background: #105147;
-  border-color: #105147;
-  color: #FFF;
-}
-.el-message-box__headerbtn .el-message-box__close:hover{
-  font-size: larger;
-  color: #000000;
 }
 </style>
