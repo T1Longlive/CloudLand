@@ -37,3 +37,8 @@ build/
 config/application-local.yml
 ### AI ÖúÊÖ±¾µØÄ¿Â¼ ###
 .workbuddy/
+
+### Python æµ‹è¯•äº§ç‰©ï¼ˆtesting/apiï¼‰ ###
+__pycache__/
+.pytest_cache/
+testing/api/allure-results/

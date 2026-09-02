@@ -140,4 +140,5 @@ testing/api/
 
 - **2026-09-02**：W1 全部完成（原计划 W1-2，提前收口）。方向决策定稿（测开×DevOps 融合）。2 commit 上线。54/54 全绿。
 - **2026-09-02**:W2 收尾完成,`test:ci` 62/62 全绿。`.env.test` 体系落地(含 Playwright .mjs 管道坑位记录);cleanup helper 补齐调用方用例;线上冒烟确认两修复生效。下一步:W3-5 API 自动化层(pytest,首条用例=提权回归)。
+- **2026-09-02**:W3 开工:API 自动化层脚手架落地(testing/api/,pytest+requests+allure-pytest),15 用例全绿——test_auth.py(登录双通道/HTTP 401·403 语义/token 滑动续期)+ test_user.py(提权回归/注册查重/默认值锁定/seed 保护)。**顺手发现并修复真实缺陷**:不存在手机号+验证码头登录 → redisTemplate.delete(null) 抛 500,已改为返回 PHONE_NO_EXIST(UserServiceImpl)。
 

@@ -106,6 +106,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         String code = request.getHeader("code");
         if (code != null) {
             String mail = selectByEmail(user);
+            if (mail == null) {
+                // 手机号不存在：验证码通道查不到邮箱，走账号不存在分支
+                // （原实现会执行 redisTemplate.delete(null) 抛异常返回 500）
+                return new Result(Code.PHONE_NO_EXIST, null, Msg.PHONE_NO_EXIST);
+            }
             if (!CodeCheck(mail, code)) {
                 return new Result(Code.CODE_ERR, null, Msg.CODE_ERR);
             }
