@@ -1,0 +1,2 @@
+POST http://localhost:9090/api/user/register
+-> code=20007 msg=该手机号已注册

@@ -1,0 +1,2 @@
+POST http://localhost:9090/api/user/login
+-> code=20005 msg=eyJhbGciOiJIUzI1NiJ9.eyJwaG9uZSI6IjE5OTAwMDAwMDAxIiwiaWQiOjM0LCJwb3dlciI6MCwiZGVidCI6MC4wLCJ1c2VybmFtZSI6IsOmwrXigLnDqMKv4oCiw6XCrsKiw6bLhsK3IiwiZXhwIjoxNzg4OTQ4NjYxfQ.DI1SL_mQbMK31SUMPRFogPHTp_6ud9PnPecD7uxvj1g

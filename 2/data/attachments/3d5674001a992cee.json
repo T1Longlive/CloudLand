@@ -1,0 +1,2 @@
+POST http://localhost:9090/api/alipay/pay
+-> code=10001 msg=添加成功
