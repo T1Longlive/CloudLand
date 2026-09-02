@@ -1,7 +1,7 @@
 # 质量效能路线图与进度跟踪
 
 > 用途：跨会话接手文档。任何新对话读本文件即可了解方向决策、整体计划、当前进度与下一步任务，无需重新分析。
-> 建立:2026-09-02 · 最近更新:2026-09-02(W3 全部完成,API 层 34/34 全绿,下一站 W6-7 CI)
+> 建立:2026-09-02 · 最近更新:2026-09-02(W6 CI 双 job 全绿+报告上线,W7 可选增强后进 W8-10)
 
 ## 1. 背景与方向决策
 
@@ -112,6 +112,24 @@ testing/api/
 
 - 支付用例依赖支付宝沙箱配置（本地 application.yml 已配好，只测 /alipay/pay 不碰回调）
 
+### W6-7（CI 流水线）—— W6 主体完成 ✅（2026-09-02）
+
+**双 job 全绿 + 报告上线**：Run #2（commit 341925a）api / e2e / report 三 job 全部 success。
+
+**访问入口**：
+- CI 状态徽章：README.en.md（Actions / Allure / Playwright 三徽章）
+- Allure 报告（含历史趋势）：https://t1longlive.github.io/CloudLand/
+- Playwright HTML 报告：https://t1longlive.github.io/CloudLand/e2e/
+- 仓库：https://github.com/T1Longlive/CloudLand（remote 名 `github`，与 origin(gitee) 双推）
+
+**首跑失败与修复（面试故事素材：CI 环境与本地差异）**：
+- 现象：E2E job 一次通过，API job 挂在 pytest 步骤
+- 根因：CI 全新数据库只有 cloudland.sql 基础数据，无 199 段种子账号 → conftest 所有 fixture 登录失败；本地库预置过 seed 所以从未暴露
+- 修复：api job 在 MySQL 就绪后显式导入 `vue/tests/fixtures/seed.sql`（INSERT IGNORE 幂等）并回查 199 段账号确认
+- 教训：测试对环境的隐式依赖（本地预置数据）必须在 CI 的全新环境里验证一次才算真正闭环
+
+**运维增量（deploy+smoke job）**：按决策延后，生产部署仍由 Gitee Go 负责。W7 可选做：线上只读冒烟 job、CI 徽章进中文 README、Allure 历史趋势观察。
+
 ### W6-7（CI）预埋的坑（提前知道）
 
 - `FILE_STORAGE_ROOT` 在 CI 是 Linux 路径，需 env 覆盖 `D:/CloudLandFile`
@@ -161,4 +179,5 @@ testing/api/
 - **2026-09-02**:W3 收尾整理:计划文档重构(第 4 节改为接手指引,含目录-用例数对照、W3 剩余契约用例的实现思路、本地运行注意事项)。**未 push 的 3 个 commit**:f450ff9(W2)/7c6d3ab(W3 开工,含 UserServiceImpl 500 修复)/bf4122f(W3 主干,含 AlipayController 500 修复)——下次会话先确认是否 push 上线(push 即触发 Gitee Go 部署)。本地后端已用含两修复的 jar 运行中。
 
 - **2026-09-02**:W3 全部完成:新增 `test_contract.py` 契约用例 7 条(码表键集合/逐键取值/isSuccess 双端白名单/白名单引用合法性/getCodeMessage 全覆盖/码表无重值/SUCCESS=0·FAILURE=-1 锚点),API 层 **34/34 全绿**。纯源码正则解析,不起服务即可跑通(0.02s),天然适配 CI 的快速反馈位。W4-5 可选增强不阻塞主线,下一站 **W6-7 CI 流水线**(GitHub Actions 双 job + Allure)。
+- **2026-09-02**:W6 收官:CI Run #2 三 job 全绿(api 34 用例/e2e 62 用例/report 发布),GitHub Pages 上线(Allure 根路径 + Playwright /e2e/,用户手动开启 Pages 源=gh-pages)。首跑 API job 失败→根因=CI 全新库无 199 段 seed(本地预置过未暴露)→修复=api job 显式导入 seed.sql 并回查,教训已记入面试故事。
 
