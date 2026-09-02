@@ -17,6 +17,9 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+  schedule:
+    # 线上巡检：每 6 小时跑一次只读冒烟（UTC 0/6/12/18 点 = 北京 8/14/20/2 点）
+    - cron: '0 */6 * * *'
 
 # 同分支新推送取消旧运行，避免 gh-pages 发布互相竞争
 concurrency:
@@ -29,6 +32,7 @@ permissions:
 jobs:
   api:
     name: API 测试（pytest + Allure）
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -132,6 +136,7 @@ jobs:
 
   e2e:
     name: E2E 测试（Playwright）
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
@@ -253,10 +258,53 @@ jobs:
             vue/test-results/junit.xml
           retention-days: 14
 
+  smoke:
+    name: 线上冒烟（只读）
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PROD_BASE: http://8.137.114.176
+    steps:
+      # 只读冒烟：不部署、不写库、不造数。验证线上三件套——前端可达、后端健康、公开业务接口可用。
+      # 断言基准：health 返回 UP；land/product 分页返回业务码 10004(SELECT_OK) 且 records 非空。
+      - name: 前端首页可达
+        run: |
+          code=$(curl -s -o /tmp/front.html -w '%{http_code}' --max-time 30 "$PROD_BASE/" || true)
+          echo "frontend http=$code size=$(wc -c </tmp/front.html)"
+          [ "$code" = "200" ]
+
+      - name: 后端健康检查（actuator）
+        run: |
+          body=$(curl -s --max-time 30 "$PROD_BASE/api/actuator/health" || true)
+          echo "health body: $body"
+          echo "$body" | grep -q '"UP"'
+
+      - name: 土地列表接口（公开）
+        run: |
+          body=$(curl -s --max-time 30 -X POST "$PROD_BASE/api/land/page" \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            --data-urlencode "pageNum=1" --data-urlencode "pageSize=5" \
+            --data-urlencode "land={}" || true)
+          echo "$body" | head -c 300; echo
+          code=$(echo "$body" | jq -r '.code')
+          count=$(echo "$body" | jq '.data.records | length')
+          [ "$code" = "10004" ] && [ "$count" -gt 0 ]
+
+      - name: 产品列表接口（公开）
+        run: |
+          body=$(curl -s --max-time 30 -X POST "$PROD_BASE/api/product/page" \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            --data-urlencode "pageNum=1" --data-urlencode "pageSize=5" \
+            --data-urlencode "product={}" || true)
+          echo "$body" | head -c 300; echo
+          code=$(echo "$body" | jq -r '.code')
+          count=$(echo "$body" | jq '.data.records | length')
+          [ "$code" = "10004" ] && [ "$count" -gt 0 ]
+
   report:
     name: 汇总报告发布（gh-pages）
     needs: [api, e2e]
-    if: always()
+    if: always() && github.event_name != 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
