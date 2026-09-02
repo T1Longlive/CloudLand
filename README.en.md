@@ -1,5 +1,9 @@
 # Cloudland
 
+[![CI](https://github.com/T1Longlive/CloudLand/actions/workflows/ci.yml/badge.svg)](https://github.com/T1Longlive/CloudLand/actions/workflows/ci.yml)
+[![Allure Report](https://img.shields.io/badge/Allure-report-6F6FFF)](https://t1longlive.github.io/CloudLand/)
+[![E2E Report](https://img.shields.io/badge/Playwright-report-22A5F7)](https://t1longlive.github.io/CloudLand/e2e/)
+
 Cloudland is a cloud-based land leasing and management platform built on Spring Boot + Vue 2, offering users comprehensive features including land browsing, leasing, and ordering.
 
 ## Project Overview

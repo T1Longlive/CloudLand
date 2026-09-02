@@ -1,0 +1,291 @@
+# CI 流水线：API（pytest+Allure）+ E2E（Playwright）双 job + 报告发布 gh-pages
+#
+# 设计要点：
+# - MySQL/Redis 用 docker run 起服务（services 不支持挂载初始化 SQL）
+#   MySQL 初始化导入 cloudland.sql，就绪判定 = TCP 存活 + user 表可查（过滤 temp-server 阶段）
+# - 支付用例触发 alipayClient.pageExecute（本地签名构造表单，不联网），
+#   CI 无沙箱密钥 → 生成一次性 RSA 密钥对经环境变量注入
+# - 前端构建时用 VUE_APP_API_BASE_URL 指向本地后端（覆盖 .env.production 的线上地址）
+# - 报告汇总在 report job：Allure 历史来自 gh-pages，连同 Playwright HTML 报告一次性发布
+# - 生产部署仍由 Gitee Go 负责（push Gitee main 触发），本流水线只做质量门禁
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# 同分支新推送取消旧运行，避免 gh-pages 发布互相竞争
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write # report job 推送 gh-pages
+
+jobs:
+  api:
+    name: API 测试（pytest + Allure）
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 启动 MySQL 8（导入 cloudland.sql）
+        run: |
+          docker run -d --name mysql -p 3306:3306 \
+            -e MYSQL_ROOT_PASSWORD=123456 \
+            -e MYSQL_DATABASE=cloudland \
+            -v "$PWD/cloudland.sql:/docker-entrypoint-initdb.d/cloudland.sql:ro" \
+            mysql:8 --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+
+      - name: 启动 Redis 7
+        run: docker run -d --name redis -p 6379:6379 redis:7 --requirepass 123456
+
+      - name: 等待 MySQL 完成初始化导入
+        run: |
+          for i in $(seq 1 90); do
+            if docker exec mysql mysqladmin ping -h127.0.0.1 -uroot -p123456 --silent >/dev/null 2>&1 \
+               && docker exec mysql mysql -h127.0.0.1 -uroot -p123456 \
+                    -e "SELECT 1 FROM cloudland.user LIMIT 1" >/dev/null 2>&1; then
+              echo "MySQL ready (attempt $i)"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::MySQL 初始化超时"
+          docker logs mysql | tail -50
+          exit 1
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '8'
+          distribution: temurin
+          cache: maven
+
+      - name: 构建后端（跳过测试）
+        run: mvn -B clean package -DskipTests
+
+      - name: 生成一次性 RSA 密钥（支付宝 pageExecute 本地签名用）
+        run: |
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out /tmp/alipay-private.pem
+          openssl pkey -in /tmp/alipay-private.pem -pubout -out /tmp/alipay-public.pem
+          PRIV=$(sed '/^-----/d' /tmp/alipay-private.pem | tr -d '\n')
+          PUB=$(sed '/^-----/d' /tmp/alipay-public.pem | tr -d '\n')
+          echo "ALIPAY_APP_ID=ci-throwaway-app" >> "$GITHUB_ENV"
+          echo "ALIPAY_PRIVATE_KEY=$PRIV" >> "$GITHUB_ENV"
+          echo "ALIPAY_PUBLIC_KEY=$PUB" >> "$GITHUB_ENV"
+
+      - name: 启动后端
+        run: |
+          mkdir -p /tmp/CloudLandFile
+          nohup java -jar target/Cloudland-0.0.1-SNAPSHOT.jar > backend.log 2>&1 &
+          echo $! > backend.pid
+
+      - name: 健康门禁（actuator/health 200 才放行）
+        run: |
+          for i in $(seq 1 60); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:9090/api/actuator/health || true)
+            if [ "$code" = "200" ]; then
+              echo "Backend ready (attempt $i)"
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "::error::后端健康检查超时"
+          tail -100 backend.log
+          exit 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: testing/api/requirements.txt
+
+      - name: 安装 pytest 依赖
+        run: pip install -r testing/api/requirements.txt
+
+      - name: 运行 API 测试（34 用例）
+        working-directory: testing/api
+        run: python -m pytest . -v --alluredir=allure-results
+
+      - name: 失败时输出后端日志
+        if: failure()
+        run: tail -200 backend.log
+
+      - name: 上传 Allure 结果
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-results
+          path: testing/api/allure-results/
+          retention-days: 14
+
+  e2e:
+    name: E2E 测试（Playwright）
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 启动 MySQL 8（导入 cloudland.sql）
+        run: |
+          docker run -d --name mysql -p 3306:3306 \
+            -e MYSQL_ROOT_PASSWORD=123456 \
+            -e MYSQL_DATABASE=cloudland \
+            -v "$PWD/cloudland.sql:/docker-entrypoint-initdb.d/cloudland.sql:ro" \
+            mysql:8 --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+
+      - name: 启动 Redis 7
+        run: docker run -d --name redis -p 6379:6379 redis:7 --requirepass 123456
+
+      - name: 等待 MySQL 完成初始化导入
+        run: |
+          for i in $(seq 1 90); do
+            if docker exec mysql mysqladmin ping -h127.0.0.1 -uroot -p123456 --silent >/dev/null 2>&1 \
+               && docker exec mysql mysql -h127.0.0.1 -uroot -p123456 \
+                    -e "SELECT 1 FROM cloudland.user LIMIT 1" >/dev/null 2>&1; then
+              echo "MySQL ready (attempt $i)"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::MySQL 初始化超时"
+          docker logs mysql | tail -50
+          exit 1
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '8'
+          distribution: temurin
+          cache: maven
+
+      - name: 构建后端（跳过测试）
+        run: mvn -B clean package -DskipTests
+
+      - name: 生成一次性 RSA 密钥（支付宝 pageExecute 本地签名用）
+        run: |
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out /tmp/alipay-private.pem
+          openssl pkey -in /tmp/alipay-private.pem -pubout -out /tmp/alipay-public.pem
+          PRIV=$(sed '/^-----/d' /tmp/alipay-private.pem | tr -d '\n')
+          PUB=$(sed '/^-----/d' /tmp/alipay-public.pem | tr -d '\n')
+          echo "ALIPAY_APP_ID=ci-throwaway-app" >> "$GITHUB_ENV"
+          echo "ALIPAY_PRIVATE_KEY=$PRIV" >> "$GITHUB_ENV"
+          echo "ALIPAY_PUBLIC_KEY=$PUB" >> "$GITHUB_ENV"
+
+      - name: 启动后端
+        run: |
+          mkdir -p /tmp/CloudLandFile
+          nohup java -jar target/Cloudland-0.0.1-SNAPSHOT.jar > backend.log 2>&1 &
+          echo $! > backend.pid
+
+      - name: 健康门禁（actuator/health 200 才放行）
+        run: |
+          for i in $(seq 1 60); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:9090/api/actuator/health || true)
+            if [ "$code" = "200" ]; then
+              echo "Backend ready (attempt $i)"
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "::error::后端健康检查超时"
+          tail -100 backend.log
+          exit 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: vue/package-lock.json
+
+      - name: 安装前端依赖
+        working-directory: vue
+        run: npm ci
+
+      - name: 构建前端（API 指向本地后端，覆盖 .env.production）
+        working-directory: vue
+        env:
+          VUE_APP_API_BASE_URL: http://localhost:9090/api
+        run: npm run build
+
+      - name: 启动前端静态服务（history 模式需 SPA fallback）
+        working-directory: vue
+        run: |
+          nohup npx serve -s dist -l 8080 > frontend.log 2>&1 &
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080 || true)
+            if [ "$code" = "200" ]; then echo "Frontend ready"; exit 0; fi
+            sleep 2
+          done
+          echo "::error::前端启动超时"
+          cat frontend.log
+          exit 1
+
+      - name: 安装 Playwright 浏览器（webkit + Edge）
+        working-directory: vue
+        run: npx playwright install --with-deps webkit msedge
+
+      - name: 运行 E2E 测试（seed + webkit/edge-ci，62 用例）
+        working-directory: vue
+        run: npm run test:ci
+
+      - name: 失败时输出后端日志
+        if: failure()
+        run: tail -200 backend.log
+
+      - name: 上传 Playwright 报告
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-report
+          path: |
+            vue/playwright-report/
+            vue/test-results/junit.xml
+          retention-days: 14
+
+  report:
+    name: 汇总报告发布（gh-pages）
+    needs: [api, e2e]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: 下载 Allure 结果
+        uses: actions/download-artifact@v4
+        with:
+          name: allure-results
+          path: allure-results
+
+      - name: 生成 Allure 报告（带 gh-pages 历史趋势，保留近 20 次）
+        id: allure
+        continue-on-error: true
+        uses: simple-elf/allure-report-action@master
+        with:
+          allure_results: allure-results
+          keep_reports: 20
+
+      - name: 下载 E2E 报告
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: e2e-report
+          path: e2e-artifact
+
+      - name: 组装站点目录
+        run: |
+          mkdir -p site/e2e
+          if [ -d allure-history ]; then cp -r allure-history/. site/; fi
+          if [ -d e2e-artifact/playwright-report ]; then cp -r e2e-artifact/playwright-report/. site/e2e/; fi
+          ls -la site/
+
+      - name: 发布到 gh-pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: site
+          commit_message: 'deploy: CI 测试报告 ${{ github.run_id }}'
