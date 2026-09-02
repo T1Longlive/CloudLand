@@ -8,9 +8,18 @@
 import allure
 
 # 业务码（与后端 Code.java / 前端 code.js 对齐，按需补充）
+# ── 通用 CRUD ──
+ADD_OK = 10001
+DELETE_OK = 10002
+UPDATE_OK = 10003
+SELECT_OK = 10004
+ADD_ERR = 10005
+DELETE_ERR = 10006
+# ── 认证授权 ──
 LOGIN_OK = 20005
 REGISTER_OK = 20006
 PHONE_EXIST = 20007
+POWER_ERR = 20008
 PHONE_NO_EXIST = 20001
 PASSWORD_ERR = 20002
 CODE_ERR = 30003  # 验证码有误

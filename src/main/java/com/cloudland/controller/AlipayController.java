@@ -44,30 +44,36 @@ public class AlipayController {
                       @RequestParam(value = "totalAmount", required = false) String clientAmount,
                       @RequestParam(value = "userId", required = false) Integer clientUserId,
                       HttpServletRequest request) throws AlipayApiException {
-        // 金额服务端重算：忽略前端传入的 totalAmount（防篡改）
-        // 计价规则与 selectOrder 组装 OrderVO.price 一致：土地订单=land.price，产品订单=product.price×num
-        BigDecimal totalAmount = orderService.calcTotalAmount(orderIds);
-        if (clientAmount != null && log.isInfoEnabled()) {
-            log.info("支付金额服务端校验: server={}, client={}", totalAmount, clientAmount);
+        try {
+            // 金额服务端重算：忽略前端传入的 totalAmount（防篡改）
+            // 计价规则与 selectOrder 组装 OrderVO.price 一致：土地订单=land.price，产品订单=product.price×num
+            BigDecimal totalAmount = orderService.calcTotalAmount(orderIds);
+            if (clientAmount != null && log.isInfoEnabled()) {
+                log.info("支付金额服务端校验: server={}, client={}", totalAmount, clientAmount);
+            }
+            // 交易号使用登录用户 ID（前端传入的 userId 仅作历史兼容，不再信任）
+            Object currentUserId = request.getAttribute(MyInterceptor.ATTR_USER_ID);
+            String userIdPart = currentUserId != null ? String.valueOf(currentUserId) : String.valueOf(System.nanoTime() % 1000);
+            String outTradeNo = "CLD" + System.currentTimeMillis() + userIdPart;
+
+            AlipayTradePagePayRequest request2 = new AlipayTradePagePayRequest();
+            request2.setNotifyUrl(notifyUrl);
+            request2.setReturnUrl(returnUrl);
+            request2.setBizContent("{\"out_trade_no\":\"" + outTradeNo + "\","
+                    + "\"total_amount\":\"" + totalAmount.setScale(2, RoundingMode.HALF_UP).toPlainString() + "\","
+                    + "\"subject\":\"云用地订单支付\","
+                    + "\"product_code\":\"FAST_INSTANT_TRADE_PAY\"}");
+
+            // 存储交易号与订单ID的映射（Redis或临时存储），内部含归属校验
+            orderService.saveTradeMapping(outTradeNo, orderIds);
+
+            String form = alipayClient.pageExecute(request2).getBody();
+            return new Result(Code.ADD_OK, form, Msg.ADD_OK);
+        } catch (RuntimeException e) {
+            // 业务规则违规（订单不存在/已支付/归属校验失败）返回业务码而非 500
+            log.warn("支付请求被拒绝: {}", e.getMessage());
+            return new Result(Code.ADD_ERR, null, e.getMessage());
         }
-        // 交易号使用登录用户 ID（前端传入的 userId 仅作历史兼容，不再信任）
-        Object currentUserId = request.getAttribute(MyInterceptor.ATTR_USER_ID);
-        String userIdPart = currentUserId != null ? String.valueOf(currentUserId) : String.valueOf(System.nanoTime() % 1000);
-        String outTradeNo = "CLD" + System.currentTimeMillis() + userIdPart;
-
-        AlipayTradePagePayRequest request2 = new AlipayTradePagePayRequest();
-        request2.setNotifyUrl(notifyUrl);
-        request2.setReturnUrl(returnUrl);
-        request2.setBizContent("{\"out_trade_no\":\"" + outTradeNo + "\","
-                + "\"total_amount\":\"" + totalAmount.setScale(2, RoundingMode.HALF_UP).toPlainString() + "\","
-                + "\"subject\":\"云用地订单支付\","
-                + "\"product_code\":\"FAST_INSTANT_TRADE_PAY\"}");
-
-        // 存储交易号与订单ID的映射（Redis或临时存储），内部含归属校验
-        orderService.saveTradeMapping(outTradeNo, orderIds);
-
-        String form = alipayClient.pageExecute(request2).getBody();
-        return new Result(Code.ADD_OK, form, Msg.ADD_OK);
     }
 
     @GetMapping("/return")

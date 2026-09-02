@@ -141,4 +141,5 @@ testing/api/
 - **2026-09-02**：W1 全部完成（原计划 W1-2，提前收口）。方向决策定稿（测开×DevOps 融合）。2 commit 上线。54/54 全绿。
 - **2026-09-02**:W2 收尾完成,`test:ci` 62/62 全绿。`.env.test` 体系落地(含 Playwright .mjs 管道坑位记录);cleanup helper 补齐调用方用例;线上冒烟确认两修复生效。下一步:W3-5 API 自动化层(pytest,首条用例=提权回归)。
 - **2026-09-02**:W3 开工:API 自动化层脚手架落地(testing/api/,pytest+requests+allure-pytest),15 用例全绿——test_auth.py(登录双通道/HTTP 401·403 语义/token 滑动续期)+ test_user.py(提权回归/注册查重/默认值锁定/seed 保护)。**顺手发现并修复真实缺陷**:不存在手机号+验证码头登录 → redisTemplate.delete(null) 抛 500,已改为返回 PHONE_NO_EXIST(UserServiceImpl)。
+- **2026-09-02**:W3 主干完成:test_order.py(锁地/重复下单/删单回滚放地/扣库存/超卖拒绝/库存回补/越权删单 POWER_ERR)7 用例 + test_pay.py(金额服务端重算防篡改/Redis 交易映射 TTL/已支付拒绝/越权支付拒绝/不存在订单)5 用例,API 层 27/27 全绿。**顺手修复后端缺陷**:AlipayController.pay 业务规则违规(订单不存在/已支付/归属失败)原为未捕获 RuntimeException→HTTP 500,现返回 ADD_ERR 业务码。**造数踩坑记录**:①product.a_id 为 NOT NULL 外键,造产品必须带 aId;②LandMapper.selectById 是 INNER JOIN user(代理人),land.employee_id 缺省时查不到行→下单 NPE 500,造地必须带 employeeId;③@RequestBody 的 Lombok 属性(pId/uId)Jackson 绑定键为全小写 pid/uid,与前端一致;④redis-py 6.x 默认 RESP3 发 HELLO,本地 Redis 不支持需 protocol=2。待办:契约用例(Code.java vs code.js 码表比对)。
 
