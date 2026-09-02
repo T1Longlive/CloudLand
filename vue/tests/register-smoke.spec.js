@@ -213,8 +213,14 @@ test.describe('注册冒烟测试', () => {
   // ── 验证码倒计时 ──────────────────────────────────────────
   test('C01 发送验证码按钮倒计时', async ({ page }) => {
     await openRegisterForm(page);
+    // sendCode 前置校验注册表单全量字段，需先填完整表单再触发
+    await page.locator(SEL.username).fill(TEST.username);
     await page.locator(SEL.phone).fill(TEST.phone);
+    await page.locator(SEL.password).fill(TEST.password);
+    await page.locator(SEL.age).fill(TEST.age);
     await page.locator(SEL.email).fill(TEST.email);
+    await selectRegion(page);
+    await page.locator(SEL.detailedAddress).fill(TEST.detailedAddress);
 
     await page.route('**/user/code', route =>
       route.fulfill({

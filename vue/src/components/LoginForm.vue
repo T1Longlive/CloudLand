@@ -53,6 +53,7 @@
             placeholder="请选择地址,可搜索"
             :options="options"
             v-model="selectedOptions"
+            popper-class="region-cascader-popper"
             filterable class="box"></el-cascader>
         <input placeholder="请输入你的详细地址" class="box" v-model="user.detailedAddress">
         <p class="account">！注册即表示同意我们的协议-

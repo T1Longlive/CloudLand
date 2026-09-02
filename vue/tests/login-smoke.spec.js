@@ -1,10 +1,10 @@
 // @ts-check
 import { test, expect, request } from '@playwright/test';
 import { setVerifyCode, closeRedis } from './helpers/redis.js';
+import { TEST_ACCOUNTS } from './fixtures/accounts.js';
 
-const TEST_PHONE = '18140213287';
-const TEST_EMAIL = '676104035@qq.com';
-const TEST_PASSWORD = '123456';
+// 使用 seed.sql 的专用测试客户账号（199 段），不依赖 cloudland.sql 演示数据
+const { phone: TEST_PHONE, email: TEST_EMAIL, password: TEST_PASSWORD } = TEST_ACCOUNTS.customer;
 const TEST_CODE = '888888';
 
 const SEL = {

@@ -144,6 +144,15 @@
   color: var(--color-primary) !important;
 }
 
+/* ==================== 级联选择面板（限高滚动） ==================== */
+/* 注册表单地址级联：element-ui 2.4.5 的 popper 无边界钳制，
+   全量省份展开后面板高达 1170px，会被定位到视口外导致选项不可点；
+   限高 + 内部滚动后面板可正常放入视口 */
+.region-cascader-popper .el-cascader-panel {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
 /* ==================== 通知（居中品牌绿毛玻璃） ==================== */
 .el-notification.left {
   top: 50vh !important;

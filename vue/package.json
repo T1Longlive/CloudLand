@@ -3,7 +3,9 @@
   "private": true,
   "scripts": {
     "serve": "vue-cli-service serve",
-    "build": "vue-cli-service build"
+    "build": "vue-cli-service build",
+    "test:ci": "node tests/fixtures/seed.mjs && playwright test --project=webkit --project=edge-ci",
+    "test:debug": "playwright test --project=edge-debug"
   },
   "dependencies": {
     "axios": "^1.2.0",
@@ -22,6 +24,7 @@
     "ioredis": "^5.10.1",
     "less": "^4.0.0",
     "less-loader": "^8.0.0",
+    "mysql2": "^3.24.3",
     "vue-cli-plugin-element": "^1.0.1",
     "vue-template-compiler": "^2.6.14"
   },
