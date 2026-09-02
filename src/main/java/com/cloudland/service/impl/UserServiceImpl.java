@@ -143,6 +143,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
             redisTemplate.delete(user.getMail());
         }
         user.setId(null);
+        // 防提权：注册只能是普通客户（power=0，激活状态，无欠款），
+        // 客户端传入的 power/status/debt 一律忽略（曾可传 power=2 直接注册为管理员）
+        user.setPower(0);
+        user.setStatus(1);
+        user.setDebt(0.0);
         if (!isUserNotRegistered(user)) {
             return new Result(Code.PHONE_EXIST, null, Msg.PHONE_EXIST);
         }
