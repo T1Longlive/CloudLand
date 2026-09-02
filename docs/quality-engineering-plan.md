@@ -1,7 +1,7 @@
 # 质量效能路线图与进度跟踪
 
 > 用途：跨会话接手文档。任何新对话读本文件即可了解方向决策、整体计划、当前进度与下一步任务，无需重新分析。
-> 建立:2026-09-02 · 最近更新:2026-09-02(W6 CI 双 job 全绿+报告上线,W7 可选增强后进 W8-10)
+> 建立:2026-09-02 · 最近更新:2026-09-02(W6-7 全部收口:四 job CI+Pages 报告+定时线上巡检,下一站 W8-10 E2E 扩容+监控)
 
 ## 1. 背景与方向决策
 
@@ -117,18 +117,33 @@ testing/api/
 **双 job 全绿 + 报告上线**：Run #2（commit 341925a）api / e2e / report 三 job 全部 success。
 
 **访问入口**：
+
 - CI 状态徽章：README.en.md（Actions / Allure / Playwright 三徽章）
-- Allure 报告（含历史趋势）：https://t1longlive.github.io/CloudLand/
-- Playwright HTML 报告：https://t1longlive.github.io/CloudLand/e2e/
-- 仓库：https://github.com/T1Longlive/CloudLand（remote 名 `github`，与 origin(gitee) 双推）
+
+- Allure 报告（含历史趋势）：<https://t1longlive.github.io/CloudLand/>
+
+- Playwright HTML 报告：<https://t1longlive.github.io/CloudLand/e2e/>
+
+- 仓库：<https://github.com/T1Longlive/CloudLand（remote> 名 `github`，与 origin(gitee) 双推）
 
 **首跑失败与修复（面试故事素材：CI 环境与本地差异）**：
+
 - 现象：E2E job 一次通过，API job 挂在 pytest 步骤
+
 - 根因：CI 全新数据库只有 cloudland.sql 基础数据，无 199 段种子账号 → conftest 所有 fixture 登录失败；本地库预置过 seed 所以从未暴露
+
 - 修复：api job 在 MySQL 就绪后显式导入 `vue/tests/fixtures/seed.sql`（INSERT IGNORE 幂等）并回查 199 段账号确认
+
 - 教训：测试对环境的隐式依赖（本地预置数据）必须在 CI 的全新环境里验证一次才算真正闭环
 
-**运维增量（deploy+smoke job）**：按决策延后，生产部署仍由 Gitee Go 负责。W7 可选做：线上只读冒烟 job、CI 徽章进中文 README、Allure 历史趋势观察。
+### W6-7（CI 流水线）—— W7 完成 ✅（2026-09-02，W6-7 整体收口）
+
+**W7 线上只读冒烟 job**（commit 17dfa40，Run #4 四 job 全绿验证）：
+- **smoke job**：无基础设施依赖（无 docker/maven，~1 分钟）。四步断言——前端首页 200、`/api/actuator/health` 含 UP、土地分页 code=10004 且 records>0、产品分页同断言。纯只读（不部署/不写库/不造数），打生产 8.137.114.176。
+- **触发策略**：随 push/PR 运行（作为质量门禁的一部分）+ `cron '0 */6 * * *'` 每 6 小时定时巡检（北京 8/14/20/2 点）。定时触发时 api/e2e/report 三 job 以 `if: github.event_name != 'schedule'` 跳过，只跑 smoke——重型验证与轻量巡检解耦。
+- **首跑前本地预验证**：本地 curl 确认线上三端点行为（health=UP、land/page 返回数据、前端 200）后才写断言，避免拿猜的契约上 CI。
+
+**W6-7 汇总**：CI 已具备 push 门禁（api 34 + e2e 62 用例）、报告发布（gh-pages：Allure 历史趋势 + Playwright HTML）、线上巡检（smoke 定时）。deploy+smoke 的"部署门禁"形态按决策不做，生产部署仍由 Gitee Go 负责。
 
 ### W6-7（CI）预埋的坑（提前知道）
 
@@ -167,8 +182,8 @@ testing/api/
 ## 7. 进度日志
 
 - **2026-09-02**：W1 全部完成（原计划 W1-2，提前收口）。方向决策定稿（测开×DevOps 融合）。2 commit 上线。54/54 全绿。
-- **2026-09-02**：W6 开工：GitHub Actions CI 流水线落地（`.github/workflows/ci.yml`，推送至 https://github.com/T1Longlive/CloudLand）。三 job 结构：① **api**（MySQL/Redis docker 编排 + 导入 cloudland.sql + mvn 构建 + 健康门禁 actuator + pytest 34 用例 + Allure 结果）；② **e2e**（同套基础设施 + 前端构建覆盖 `VUE_APP_API_BASE_URL` 指向本地 + `serve -s` SPA fallback + playwright webkit/msedge 62 用例）；③ **report**（simple-elf/allure-report-action 汇总历史 + Playwright HTML 报告，peaceiris 发布 gh-pages）。README.en.md 加 CI/Allure/Playwright 三徽章。**关键技术决策**：支付用例依赖 `alipayClient.pageExecute`（本地签名构造表单不联网）→ CI 生成一次性 RSA 密钥对经环境变量注入，本地已验证（9091 第二实例 + 5/5 支付用例通过）；MySQL 就绪判定用 `mysqladmin ping -h127.0.0.1` + user 表可查双条件（过滤 entrypoint temp-server 阶段）；生产部署仍由 Gitee Go 负责。deploy+smoke 第三个部署 job 按用户决策延后（不阻塞）。
 
+- **2026-09-02**：W6 开工：GitHub Actions CI 流水线落地（`.github/workflows/ci.yml`，推送至 <https://github.com/T1Longlive/CloudLand）。三> job 结构：① **api**（MySQL/Redis docker 编排 + 导入 cloudland.sql + mvn 构建 + 健康门禁 actuator + pytest 34 用例 + Allure 结果）；② **e2e**（同套基础设施 + 前端构建覆盖 `VUE_APP_API_BASE_URL` 指向本地 + `serve -s` SPA fallback + playwright webkit/msedge 62 用例）；③ **report**（simple-elf/allure-report-action 汇总历史 + Playwright HTML 报告，peaceiris 发布 gh-pages）。README.en.md 加 CI/Allure/Playwright 三徽章。**关键技术决策**：支付用例依赖 `alipayClient.pageExecute`（本地签名构造表单不联网）→ CI 生成一次性 RSA 密钥对经环境变量注入，本地已验证（9091 第二实例 + 5/5 支付用例通过）；MySQL 就绪判定用 `mysqladmin ping -h127.0.0.1` + user 表可查双条件（过滤 entrypoint temp-server 阶段）；生产部署仍由 Gitee Go 负责。deploy+smoke 第三个部署 job 按用户决策延后（不阻塞）。
 
 - **2026-09-02**:W2 收尾完成,`test:ci` 62/62 全绿。`.env.test` 体系落地(含 Playwright .mjs 管道坑位记录);cleanup helper 补齐调用方用例;线上冒烟确认两修复生效。下一步:W3-5 API 自动化层(pytest,首条用例=提权回归)。
 
@@ -179,5 +194,7 @@ testing/api/
 - **2026-09-02**:W3 收尾整理:计划文档重构(第 4 节改为接手指引,含目录-用例数对照、W3 剩余契约用例的实现思路、本地运行注意事项)。**未 push 的 3 个 commit**:f450ff9(W2)/7c6d3ab(W3 开工,含 UserServiceImpl 500 修复)/bf4122f(W3 主干,含 AlipayController 500 修复)——下次会话先确认是否 push 上线(push 即触发 Gitee Go 部署)。本地后端已用含两修复的 jar 运行中。
 
 - **2026-09-02**:W3 全部完成:新增 `test_contract.py` 契约用例 7 条(码表键集合/逐键取值/isSuccess 双端白名单/白名单引用合法性/getCodeMessage 全覆盖/码表无重值/SUCCESS=0·FAILURE=-1 锚点),API 层 **34/34 全绿**。纯源码正则解析,不起服务即可跑通(0.02s),天然适配 CI 的快速反馈位。W4-5 可选增强不阻塞主线,下一站 **W6-7 CI 流水线**(GitHub Actions 双 job + Allure)。
+
 - **2026-09-02**:W6 收官:CI Run #2 三 job 全绿(api 34 用例/e2e 62 用例/report 发布),GitHub Pages 上线(Allure 根路径 + Playwright /e2e/,用户手动开启 Pages 源=gh-pages)。首跑 API job 失败→根因=CI 全新库无 199 段 seed(本地预置过未暴露)→修复=api job 显式导入 seed.sql 并回查,教训已记入面试故事。
+- **2026-09-02**:W7 完成:smoke 线上只读冒烟 job 上线(commit 17dfa40,Run #4 四 job 全绿验证)。四步断言(前端 200/health UP/土地分页/产品分页,均含业务码与数据量校验),随 push 门禁运行 + 每 6 小时 cron 巡检;定时触发时重型 job 条件跳过,只跑轻量 smoke。**W6-7 整体收口**。
 
