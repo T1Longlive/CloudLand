@@ -60,6 +60,12 @@ jobs:
           docker logs mysql | tail -50
           exit 1
 
+      - name: 导入测试种子账号（199 段，INSERT IGNORE 幂等）
+        run: |
+          docker exec -i mysql mysql -h127.0.0.1 -uroot -p123456 cloudland < vue/tests/fixtures/seed.sql
+          docker exec mysql mysql -h127.0.0.1 -uroot -p123456 \
+            -e "SELECT phone, power, status FROM cloudland.user WHERE phone LIKE '199%'"
+
       - uses: actions/setup-java@v4
         with:
           java-version: '8'

@@ -149,6 +149,8 @@ testing/api/
 ## 7. 进度日志
 
 - **2026-09-02**：W1 全部完成（原计划 W1-2，提前收口）。方向决策定稿（测开×DevOps 融合）。2 commit 上线。54/54 全绿。
+- **2026-09-02**：W6 开工：GitHub Actions CI 流水线落地（`.github/workflows/ci.yml`，推送至 https://github.com/T1Longlive/CloudLand）。三 job 结构：① **api**（MySQL/Redis docker 编排 + 导入 cloudland.sql + mvn 构建 + 健康门禁 actuator + pytest 34 用例 + Allure 结果）；② **e2e**（同套基础设施 + 前端构建覆盖 `VUE_APP_API_BASE_URL` 指向本地 + `serve -s` SPA fallback + playwright webkit/msedge 62 用例）；③ **report**（simple-elf/allure-report-action 汇总历史 + Playwright HTML 报告，peaceiris 发布 gh-pages）。README.en.md 加 CI/Allure/Playwright 三徽章。**关键技术决策**：支付用例依赖 `alipayClient.pageExecute`（本地签名构造表单不联网）→ CI 生成一次性 RSA 密钥对经环境变量注入，本地已验证（9091 第二实例 + 5/5 支付用例通过）；MySQL 就绪判定用 `mysqladmin ping -h127.0.0.1` + user 表可查双条件（过滤 entrypoint temp-server 阶段）；生产部署仍由 Gitee Go 负责。deploy+smoke 第三个部署 job 按用户决策延后（不阻塞）。
+
 
 - **2026-09-02**:W2 收尾完成,`test:ci` 62/62 全绿。`.env.test` 体系落地(含 Playwright .mjs 管道坑位记录);cleanup helper 补齐调用方用例;线上冒烟确认两修复生效。下一步:W3-5 API 自动化层(pytest,首条用例=提权回归)。
 
