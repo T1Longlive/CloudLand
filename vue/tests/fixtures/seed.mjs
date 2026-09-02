@@ -1,6 +1,7 @@
 // E2E 测试种子账号准备脚本（跨平台，Node 直连 MySQL，不依赖 mysql CLI）
 // 读取 seed.sql（INSERT IGNORE 幂等）执行，并校验 3 个账号就绪后退出。
 // 连接参数支持环境变量：TEST_DB_HOST / TEST_DB_PORT / TEST_DB_USER / TEST_DB_PASSWORD / TEST_DB_NAME
+import '../env.js'; // 加载 vue/.env.test（已存在的环境变量优先）
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';

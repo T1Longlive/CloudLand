@@ -1,4 +1,5 @@
 // @ts-check
+import './tests/env.js'; // 加载 .env.test 中的 TEST_* 变量（worker 进程经 config 继承）
 import { defineConfig, devices } from '@playwright/test';
 
 /**
