@@ -1,7 +1,7 @@
 # 质量效能路线图与进度跟踪
 
 > 用途：跨会话接手文档。任何新对话读本文件即可了解方向决策、整体计划、当前进度与下一步任务，无需重新分析。
-> 建立:2026-09-02 · 最近更新:2026-09-02(W3 主体完成,剩契约用例)
+> 建立:2026-09-02 · 最近更新:2026-09-02(W3 全部完成,API 层 34/34 全绿,下一站 W6-7 CI)
 
 ## 1. 背景与方向决策
 
@@ -82,9 +82,9 @@
 
 - [x] 线上冒烟双 PASS:① 注册带 `power=2/status=0/debt=999` → 登录实测入库 `power=0/status=1/debt=0`;② 线上 `app.82fb3576.css` 含 `.region-cascader-popper .el-cascader-panel{max-height:300px}`。`test:ci` 62/62 全绿(新增 cleanup 4 用例 × 2 project)
 
-### W3-5（API 自动化层）—— W3 主体完成 ✅，剩契约用例
+### W3-5（API 自动化层）—— W3 全部完成 ✅，下一站 W6-7 CI
 
-**当前状态（2026-09-02）**：`testing/api/` 已落地 27 用例全绿（`python -m pytest testing/api/ --alluredir=testing/api/allure-results`）。
+**当前状态（2026-09-02）**：`testing/api/` 已落地 34 用例全绿（`python -m pytest testing/api/ --alluredir=testing/api/allure-results`）。
 
 ```
 testing/api/
@@ -92,20 +92,24 @@ testing/api/
 ├── common/
 │   ├── client.py        # requests 封装：token 头 + updatedToken 续期 + 订单/支付 helper（pid/uid 小写契约）
 │   └── assertions.py    # 双层断言：HTTP 状态 + Code 业务码
-├── test_auth.py   (10)  # 登录双通道/401·403 语义/token 滑动续期/公开接口白名单
-├── test_user.py    (5)  # 提权回归（CRITICAL）/注册查重/默认值锁定/seed 保护
-├── test_order.py   (7)  # 锁地/重复下单/删单放地/扣库存/超卖/库存回补/越权删单
-├── test_pay.py     (5)  # 金额服务端重算防篡改/Redis 交易映射 TTL/已支付拒绝/越权支付/不存在订单
+├── test_auth.py     (10) # 登录双通道/401·403 语义/token 滑动续期/公开接口白名单
+├── test_user.py     (5)  # 提权回归（CRITICAL）/注册查重/默认值锁定/seed 保护
+├── test_order.py    (7)  # 锁地/重复下单/删单放地/扣库存/超卖/库存回补/越权删单
+├── test_pay.py      (5)  # 金额服务端重算防篡改/Redis 交易映射 TTL/已支付拒绝/越权支付/不存在订单
+├── test_contract.py (7)  # 码表契约：键集合/同名取值/isSuccess 白名单/消息映射/无重值/锚点常量
 └── requirements.txt     # pytest + requests + allure-pytest + redis
 ```
 
-**W3 剩余（下次会话第一个任务）**：契约用例 `test_contract.py`——读取后端 `src/main/java/com/cloudland/controller/result/Code.java` 与前端 `vue/src/constants/code.js` 源码，正则解析码表后自动比对，防前后端码表漂移。纯文件解析，无需起服务。思路：各解析出 `NAME: 数字` 映射 → 断言两表键值完全一致；不一致时输出双方差异。
+**契约用例已落地（2026-09-02）**：`test_contract.py` 纯源码正则解析（无需起服务），固化四层契约——① Java/JS 码表键集合一致（无缺失无多余）；② 同名状态码逐键取值一致；③ 两端 isSuccess() 成功白名单一致且引用合法；④ code.js getCodeMessage 消息映射全覆盖；另含码表无重值与 SUCCESS=0/FAILURE=-1 锚点锁定。解析要点：Java 匹配 `public static final Integer NAME = 数字;`；JS 只匹配两空格缩进的 `NAME: 数字,` 属性行（排除 `[Code.X]: '文案'` 映射行）；文件用 utf-8-sig 读取兼容 BOM。
 
-**W4-5 可选增强**（时间富余再做）：改密防越权（/user/password + UpdatePasswordDTO）、订单导出下载、msg 模块公开接口。
+**W4-5 可选增强**（时间富余再做，不阻塞 W6-7）：改密防越权（/user/password + UpdatePasswordDTO）、订单导出下载、msg 模块公开接口。
 
 **本地运行注意**：
+
 - 需后端 9090 + MySQL + Redis 全部在线（无需前端）
+
 - 临时账号 134 段 / 造数产品名前缀 `APIT产品` / 造数土地名前缀 `APIT土地`（conftest 工厂自动清理，残留可按前缀手动清）
+
 - 支付用例依赖支付宝沙箱配置（本地 application.yml 已配好，只测 /alipay/pay 不碰回调）
 
 ### W6-7（CI）预埋的坑（提前知道）
@@ -135,7 +139,7 @@ testing/api/
 | 后端启动         | `java -jar target\Cloudland-0.0.1-SNAPSHOT.jar`（先 `mvn clean package -DskipTests`） |
 | 前端启动         | `cd vue && npm run serve`（8080）                                                    |
 | E2E 测试       | `cd vue && npm run test:ci`（62 用例）/ `npm run test:debug`                           |
-| API 测试       | `python -m pytest testing/api/ -v --alluredir=testing/api/allure-results`（27 用例） |
+| API 测试       | `python -m pytest testing/api/ -v --alluredir=testing/api/allure-results`（34 用例）   |
 | 本地 MySQL     | root / 123456，库名 cloudland                                                         |
 | 本地 Redis     | 6379，密码 123456                                                                     |
 | 种子测试账号       | 19900000001（客户）/ 19900000002（员工）/ 19900000003（管理员），密码均 `Test@123456`               |
@@ -145,8 +149,14 @@ testing/api/
 ## 7. 进度日志
 
 - **2026-09-02**：W1 全部完成（原计划 W1-2，提前收口）。方向决策定稿（测开×DevOps 融合）。2 commit 上线。54/54 全绿。
+
 - **2026-09-02**:W2 收尾完成,`test:ci` 62/62 全绿。`.env.test` 体系落地(含 Playwright .mjs 管道坑位记录);cleanup helper 补齐调用方用例;线上冒烟确认两修复生效。下一步:W3-5 API 自动化层(pytest,首条用例=提权回归)。
-- **2026-09-02**:W3 开工:API 自动化层脚手架落地(testing/api/,pytest+requests+allure-pytest),15 用例全绿——test_auth.py(登录双通道/HTTP 401·403 语义/token 滑动续期)+ test_user.py(提权回归/注册查重/默认值锁定/seed 保护)。**顺手发现并修复真实缺陷**:不存在手机号+验证码头登录 → redisTemplate.delete(null) 抛 500,已改为返回 PHONE_NO_EXIST(UserServiceImpl)。
-- **2026-09-02**:W3 主干完成:test_order.py(锁地/重复下单/删单回滚放地/扣库存/超卖拒绝/库存回补/越权删单 POWER_ERR)7 用例 + test_pay.py(金额服务端重算防篡改/Redis 交易映射 TTL/已支付拒绝/越权支付拒绝/不存在订单)5 用例,API 层 27/27 全绿。**顺手修复后端缺陷**:AlipayController.pay 业务规则违规(订单不存在/已支付/归属失败)原为未捕获 RuntimeException→HTTP 500,现返回 ADD_ERR 业务码。**造数踩坑记录**:①product.a_id 为 NOT NULL 外键,造产品必须带 aId;②LandMapper.selectById 是 INNER JOIN user(代理人),land.employee_id 缺省时查不到行→下单 NPE 500,造地必须带 employeeId;③@RequestBody 的 Lombok 属性(pId/uId)Jackson 绑定键为全小写 pid/uid,与前端一致;④redis-py 6.x 默认 RESP3 发 HELLO,本地 Redis 不支持需 protocol=2。待办:契约用例(Code.java vs code.js 码表比对)。
+
+- **2026-09-02**:W3 开工:API 自动化层脚手架落地(testing/api/,pytest+requests+allure-pytest),15 用例全绿——test\_auth.py(登录双通道/HTTP 401·403 语义/token 滑动续期)+ test\_user.py(提权回归/注册查重/默认值锁定/seed 保护)。**顺手发现并修复真实缺陷**:不存在手机号+验证码头登录 → redisTemplate.delete(null) 抛 500,已改为返回 PHONE\_NO\_EXIST(UserServiceImpl)。
+
+- **2026-09-02**:W3 主干完成:test\_order.py(锁地/重复下单/删单回滚放地/扣库存/超卖拒绝/库存回补/越权删单 POWER\_ERR)7 用例 + test\_pay.py(金额服务端重算防篡改/Redis 交易映射 TTL/已支付拒绝/越权支付拒绝/不存在订单)5 用例,API 层 27/27 全绿。**顺手修复后端缺陷**:AlipayController.pay 业务规则违规(订单不存在/已支付/归属失败)原为未捕获 RuntimeException→HTTP 500,现返回 ADD\_ERR 业务码。**造数踩坑记录**:①product.a\_id 为 NOT NULL 外键,造产品必须带 aId;②LandMapper.selectById 是 INNER JOIN user(代理人),land.employee\_id 缺省时查不到行→下单 NPE 500,造地必须带 employeeId;③@RequestBody 的 Lombok 属性(pId/uId)Jackson 绑定键为全小写 pid/uid,与前端一致;④redis-py 6.x 默认 RESP3 发 HELLO,本地 Redis 不支持需 protocol=2。待办:契约用例(Code.java vs code.js 码表比对)。
+
 - **2026-09-02**:W3 收尾整理:计划文档重构(第 4 节改为接手指引,含目录-用例数对照、W3 剩余契约用例的实现思路、本地运行注意事项)。**未 push 的 3 个 commit**:f450ff9(W2)/7c6d3ab(W3 开工,含 UserServiceImpl 500 修复)/bf4122f(W3 主干,含 AlipayController 500 修复)——下次会话先确认是否 push 上线(push 即触发 Gitee Go 部署)。本地后端已用含两修复的 jar 运行中。
+
+- **2026-09-02**:W3 全部完成:新增 `test_contract.py` 契约用例 7 条(码表键集合/逐键取值/isSuccess 双端白名单/白名单引用合法性/getCodeMessage 全覆盖/码表无重值/SUCCESS=0·FAILURE=-1 锚点),API 层 **34/34 全绿**。纯源码正则解析,不起服务即可跑通(0.02s),天然适配 CI 的快速反馈位。W4-5 可选增强不阻塞主线,下一站 **W6-7 CI 流水线**(GitHub Actions 双 job + Allure)。
 
