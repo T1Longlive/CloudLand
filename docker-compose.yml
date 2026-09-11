@@ -47,8 +47,10 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
       MYSQL_DATABASE: cloudland
-    ports:
-      - "3306:3306"
+    # 生产环境不对外暴露端口：backend 通过 compose 内部网络 mysql:3306 访问即可。
+    # 如需本地用 GUI 客户端调试，临时改用：
+    #   ports:
+    #     - "127.0.0.1:3306:3306"   # 仅绑定回环，杜绝公网暴露
     volumes:
       - mysql-data:/var/lib/mysql
       - ./cloudland.sql:/docker-entrypoint-initdb.d/cloudland.sql
