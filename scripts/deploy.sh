@@ -105,8 +105,21 @@ git reset --hard "origin/$BRANCH"
 log "Pulling dependency images"
 $DC pull mysql redis || true
 
-log "Building application images"
-$DC build --pull backend frontend
+# ---------- 应用镜像来自云端构建产物（方案 B）----------
+# 镜像由 Gitee 云端构建（build@docker）并推送到阿里云 ACR，
+# 服务器只负责拉取运行，不再本地编译 —— 因此不再需要 Maven / Node，
+# 也就没有了本地编译的内存峰值（本机内存仅 1.8G，曾被 OOM 杀掉过）。
+ACR_HOST="crpi-jzqyelh9p5zb0dmu.cn-chengdu.personal.cr.aliyuncs.com"
+
+# 私有仓库需要先登录。若没登录，pull 会报 Authentication 相关错误，
+# 这里提前检测并给出可执行的提示，避免对着难懂的报错排查。
+if [ ! -f "$HOME/.docker/config.json" ] || ! grep -q "$ACR_HOST" "$HOME/.docker/config.json" 2>/dev/null; then
+  log "WARN: 未检测到 $ACR_HOST 的登录记录"
+  log "      若 pull 失败，请先执行： docker login $ACR_HOST"
+fi
+
+log "Pulling application images from registry"
+$DC pull backend frontend
 
 ensure_host_nginx_stopped
 

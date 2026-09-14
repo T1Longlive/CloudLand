@@ -2,7 +2,11 @@ version: '3.8'
 
 services:
   backend:
-    build: .
+    # 方案 B：镜像由 Gitee 云端构建并推送到阿里云 ACR
+    # （见 .workflow/流水线-*.yml 里的 build@docker 步骤）
+    # 服务器只 pull + up，不再本地编译 Maven —— 部署不再产生内存峰值。
+    # ⚠️ 地址里的 t1longlive 是 ACR 命名空间，与 Gitee 个人空间地址一致
+    image: crpi-jzqyelh9p5zb0dmu.cn-chengdu.personal.cr.aliyuncs.com/t1longlive/cloudland-backend:latest
     container_name: cloudland-backend
     env_file:
       - .env
@@ -31,7 +35,8 @@ services:
     restart: unless-stopped
 
   frontend:
-    build: ./vue
+    # 同上：镜像来自云端构建产物
+    image: crpi-jzqyelh9p5zb0dmu.cn-chengdu.personal.cr.aliyuncs.com/t1longlive/cloudland-frontend:latest
     container_name: cloudland-frontend
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf

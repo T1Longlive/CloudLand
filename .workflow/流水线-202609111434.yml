@@ -2,8 +2,60 @@ version: "1.0"
 name: cloudland-deploy
 displayName: cloudland-deploy
 stages:
+# ======================================================================
+# 方案 B：在 Gitee 云端构建 Docker 镜像并推送到阿里云 ACR，
+# 服务器只做 docker compose pull + up -d，不再本地编译。
+# 动机：本机内存仅 1.8G，服务器端编译 Maven/npm 会被 OOM Killer 杀掉。
+#
+# 🔴 两个必须知道的规则（均已在 pm-system 上实测）：
+#   1. 构建上下文固定为「代码库根目录」，故 Dockerfile 的 COPY 路径
+#      要相对仓库根书写（前端已改为 COPY vue/...）。
+#   2. repository/username/password 必须是凭证模板，且凭证里的
+#      「docker仓库地址」必须包含命名空间（<端点>/t1longlive），
+#      否则会报 insufficient_scope。
+#
+# ⚠️ 本文件若被 Gitee 可视化编辑器保存过，会丢失注释与 dependsOn，
+#    保存后务必回仓库核对 dependsOn 是否还在。
+# ======================================================================
+- name: Build Images
+  displayName: 云端构建镜像
+  strategy: naturally
+  trigger: auto
+  executor: []
+  steps:
+  - step: build@docker
+    name: build_backend_image
+    displayName: 构建后端镜像
+    certificate: "18140213287"
+    repository: "{{CERTIFICATION.18140213287.server}}"
+    username: "{{CERTIFICATION.18140213287.username}}"
+    password: "{{CERTIFICATION.18140213287.password}}"
+    tag: cloudland-backend:latest
+    dockerfile: ./Dockerfile
+    isCache: false
+    processorType:
+    - amd64
+    strategy:
+      retry: "0"
+  - step: build@docker
+    name: build_frontend_image
+    displayName: 构建前端镜像
+    certificate: "18140213287"
+    repository: "{{CERTIFICATION.18140213287.server}}"
+    username: "{{CERTIFICATION.18140213287.username}}"
+    password: "{{CERTIFICATION.18140213287.password}}"
+    tag: cloudland-frontend:latest
+    dockerfile: ./vue/Dockerfile
+    isCache: false
+    processorType:
+    - amd64
+    strategy:
+      retry: "0"
 - name: Deploy To Aliyun
   displayName: Deploy To Aliyun
+  # 质量门禁：必须等镜像构建成功才部署
+  dependsOn:
+  - Build Images
   strategy: naturally
   trigger: auto
   executor:
