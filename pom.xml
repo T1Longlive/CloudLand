@@ -107,6 +107,15 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
+
+        <!-- 测试：带来 JUnit 5 + AssertJ + Mockito + spring-test
+             （原先 pom 里连测试依赖都没有，所以 src/test 是空的、门禁完全关闭）。
+             版本由 spring-boot-starter-parent 管理，无需显式指定。 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
