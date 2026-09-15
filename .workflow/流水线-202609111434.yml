@@ -38,6 +38,13 @@ stages:
       retry: "0"
 - name: Deploy To Aliyun
   displayName: Deploy To Aliyun
+  # 质量门禁：必须等镜像构建成功才部署。
+  # ⚠️ Gitee 可视化编辑器保存时会删掉 dependsOn —— 本项目已发生 1 次，
+  #    pm-system 已发生 3 次。每次在网页端保存流水线后，
+  #    务必回仓库核对这一行是否还在：
+  #      git fetch origin main && git show FETCH_HEAD:.workflow/<文件>.yml | grep -A2 dependsOn
+  dependsOn:
+  - 云端构建镜像
   strategy: naturally
   trigger: auto
   executor:
