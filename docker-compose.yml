@@ -1,12 +1,23 @@
 version: '3.8'
 
+# ⚠️ 应用镜像按 IMAGE_TAG 取 tag（值 = commit SHA），不再是 latest。
+#    正常部署走 scripts/deploy.sh（它负责计算并导出 IMAGE_TAG）。
+#    手工排查时也必须带上，否则本文件会直接报错：
+#        cd /root/cloudland
+#        IMAGE_TAG=$(git rev-parse HEAD) docker compose ps
+#    ⚠️ 不要在本文件同级 .env 里定义 IMAGE_TAG（见 .env.example 的警告）。
+
 services:
   backend:
     # 方案 B：镜像由 Gitee 云端构建并推送到阿里云 ACR
     # （见 .workflow/流水线-*.yml 里的 build@docker 步骤）
     # 服务器只 pull + up，不再本地编译 Maven —— 部署不再产生内存峰值。
     # ⚠️ 地址里的 t1longlive 是 ACR 命名空间，与 Gitee 个人空间地址一致
-    image: crpi-jzqyelh9p5zb0dmu.cn-chengdu.personal.cr.aliyuncs.com/t1longlive/cloudland-backend:latest
+    #
+    # 用 `:?` 而非 `:-` 是刻意的：变量缺失时直接报错退出，
+    # 避免"静默拉取 latest"这种查不出来的错。
+    # （报错文案保持纯 ASCII，避免服务器 locale 不完整时输出乱码。）
+    image: crpi-jzqyelh9p5zb0dmu.cn-chengdu.personal.cr.aliyuncs.com/t1longlive/cloudland-backend:${IMAGE_TAG:?IMAGE_TAG is not set - deploy via scripts/deploy.sh}
     container_name: cloudland-backend
     env_file:
       - .env
@@ -35,8 +46,8 @@ services:
     restart: unless-stopped
 
   frontend:
-    # 同上：镜像来自云端构建产物
-    image: crpi-jzqyelh9p5zb0dmu.cn-chengdu.personal.cr.aliyuncs.com/t1longlive/cloudland-frontend:latest
+    # 同上：镜像来自云端构建产物；tag 由 IMAGE_TAG 决定（见文件头说明）
+    image: crpi-jzqyelh9p5zb0dmu.cn-chengdu.personal.cr.aliyuncs.com/t1longlive/cloudland-frontend:${IMAGE_TAG:?IMAGE_TAG is not set - deploy via scripts/deploy.sh}
     container_name: cloudland-frontend
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf
