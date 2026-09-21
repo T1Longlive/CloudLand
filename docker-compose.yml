@@ -1,5 +1,25 @@
 version: '3.8'
 
+# ======================================================================
+# 🔴 内存：本文件的每一项内存参数都是事故后加的，不要删
+# ----------------------------------------------------------------------
+# 2026-09-21 这台服务器（与 pm-system 共用）发生过一次 OOM 雪崩：
+# 内核 OOM killer 先杀本项目的 java 与 mysqld，最后把 dockerd 自己
+# （RSS 1 GB）也杀了两次，结果 8 个容器里 7 个停摆。
+#
+# 根因是**结构性超配**。加固前实测的容器内存：
+#     cloudland-backend   318.3 MiB   ← JVM 未设堆上限
+#     cloudland-mysql     351.8 MiB   ← InnoDB 缓冲池 128M + performance_schema
+#     pm-backend          170.1 MiB   ← 已加固，对照
+#     pm-mysql            126.8 MiB   ← 已加固，对照
+# 同样的两个服务，加固与不加固差 **373 MiB**。
+#
+# 下面两处（backend 的 JAVA_TOOL_OPTIONS、mysql 的 command）与 pm-system
+# 用的是同一套参数，理由是两台栈是同构的 Spring Boot + MySQL + Redis。
+#
+# ⚠️ 这些不是"可选优化"。删掉它们，OOM 会再来一次。
+# ======================================================================
+
 # ⚠️ 应用镜像按 IMAGE_TAG 取 tag（值 = commit SHA），不再是 latest。
 #    正常部署走 scripts/deploy.sh（它负责计算并导出 IMAGE_TAG）。
 #    手工排查时也必须带上，否则本文件会直接报错：
@@ -38,6 +58,20 @@ services:
       ALIPAY_NOTIFY_URL: ${ALIPAY_NOTIFY_URL}
       ALIPAY_RETURN_URL: ${ALIPAY_RETURN_URL}
       TZ: Asia/Shanghai
+      # ================================================================
+      # 🔴 JVM 堆上限 —— 2026-09-21 OOM 事故的直接对策
+      # ================================================================
+      # 不加这一行时，JVM 默认取宿主内存的 1/4。对一台 1.87 GiB 的机器，
+      # 那是 ~470 MiB/进程 —— 两套栈的后端加起来近 1 GB 的潜在堆。
+      # 实测：加固前本容器 318.3 MiB，同构的 pm-backend 加固后只有 170.1 MiB。
+      #
+      # 为什么用 JAVA_TOOL_OPTIONS 而不是 JAVA_OPTS：
+      #   它是 JVM 自己识别的环境变量，不依赖 shell 展开 ——
+      #   Dockerfile 里无论用 exec 还是 shell 形式的 ENTRYPOINT/CMD 都生效。
+      #
+      # -XX:+UseSerialGC：单线程 GC，不额外起 GC 工作线程（省内存与 CPU）
+      # -Xss512k：线程栈从默认 1M 降到 512k
+      JAVA_TOOL_OPTIONS: "-Xmx320m -XX:+UseSerialGC -Xss512k"
     volumes:
       - cloudland-files:/cloudland-files
     depends_on:
@@ -63,6 +97,21 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
       MYSQL_DATABASE: cloudland
+    # ================================================================
+    # 🔴 缩小 MySQL 的内存占用
+    # ================================================================
+    # 实测本容器 351.8 MiB，大头是：
+    #   · InnoDB 缓冲池：默认 128 MiB
+    #   · performance_schema：MySQL 8 默认开启，额外吃 100~200 MiB
+    # 同构的 pm-mysql 加上这两个参数后降到 126.8 MiB —— **省了 225 MiB**。
+    #
+    # ⚠️ 两个都是**启动参数**，改了必须重建容器才生效（不是热改）。
+    #    它们只影响内存分配，**不触碰任何数据**。
+    # ⚠️ 刻意不加 --skip-name-resolve：会让基于主机名的授权失效，
+    #    属于"省一点内存但可能连不上库"的陷阱，不值得。
+    command:
+      - --innodb-buffer-pool-size=64M
+      - --performance-schema=OFF
     # 生产环境不对外暴露端口：backend 通过 compose 内部网络 mysql:3306 访问即可。
     # 如需本地用 GUI 客户端调试，临时改用：
     #   ports:
