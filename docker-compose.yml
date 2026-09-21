@@ -90,7 +90,16 @@ services:
       #
       # -XX:+UseSerialGC：单线程 GC，不额外起 GC 工作线程（省内存与 CPU）
       # -Xss512k：线程栈从默认 1M 降到 512k
-      JAVA_TOOL_OPTIONS: "-Xmx320m -XX:+UseSerialGC -Xss512k"
+      #
+      # -XX:+ExitOnOutOfMemoryError：OOM 时**让进程直接退出**，而不是抛个异常继续跑。
+      #   默认行为是「抛 OutOfMemoryError 但进程不死」→ 应用半死不活：
+      #   容器状态仍是 Up，健康检查照常放行，可某些功能已在报 500 —— 比直接挂更难查。
+      #   加上它之后：进程退出 → 容器 Exited → restart 策略拉起 → 健康检查发现
+      #   → 重启次数上升（可见）。即 fail-fast 换可观测性。
+      #
+      # 🔴 已实测本镜像的 JVM 支持该参数（Java 8u342，而它自 JDK 8u92 起提供）：
+      #   不支持的参数会让 JVM 直接拒绝启动，对照测试会报 `Unrecognized VM option`。
+      JAVA_TOOL_OPTIONS: "-Xmx320m -XX:+UseSerialGC -Xss512k -XX:+ExitOnOutOfMemoryError"
     volumes:
       - cloudland-files:/cloudland-files
     depends_on:
