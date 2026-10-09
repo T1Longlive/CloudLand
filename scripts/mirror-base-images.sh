@@ -3,13 +3,16 @@
 # 把 Cloudland 需要的 4 个基础镜像转存到本项目 ACR
 # ----------------------------------------------------------------------
 # 【为什么需要】
-#   Gitee 云端构建（build@docker / buildkit）**无法访问 Docker Hub**，
-#   也不能保证能访问第三方镜像代理（原本 Dockerfile 用的是
-#   docker.1panel.live）。把基础镜像转存到自己的 ACR 后，云端即可拉取 ——
+#   云端构建环境不保证能访问 Docker Hub（Gitee 时代的云端构建完全访问不了；
+#   原本 Dockerfile 依赖的第三方代理 docker.1panel.live 也已失效）。
+#   把基础镜像转存到自己的 ACR 后，云端即可拉取 ——
 #   而 ACR 的可达性是已确定的（我们本来就在往它推镜像）。
 #   顺带好处：基础镜像来源固定，供应链可控。
 #
-# 【在哪执行】在阿里云服务器上执行（服务器的 Docker 已配镜像加速）。
+# 【在哪执行】⚠️ 2026-09-24 实测：**服务器已经无法访问 Docker Hub**，
+#   本脚本在服务器上会失败。pm-system 已改为在 GitHub Actions runner 里转存
+#   （见其 .github/workflows/refresh-base-images.yml，runner 能正常访问 Docker Hub）。
+#   Cloudland 要刷新基础镜像应照做；本脚本保留，供网络可达时手动使用。
 #
 # 【什么时候执行】基础镜像版本变化时重跑。日常部署不需要。
 #
@@ -81,7 +84,7 @@ if [ "$fail" -eq 0 ]; then
   echo "✓ 全部基础镜像已转存到 ACR"
   echo
   echo "下一步：两个 Dockerfile 的 FROM 已指向 ${ACR}/${NS}/...，"
-  echo "        可以回 Gitee 重新运行流水线了。"
+  echo "        可以重新运行流水线了（GitHub Actions: build-deploy.yml）。"
 else
   echo "✗ 有镜像处理失败，请按上面提示排查后重跑本脚本"
   exit 1

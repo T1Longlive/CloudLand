@@ -1,12 +1,11 @@
 # ======================================================================
 # Cloudland 前端镜像（多阶段构建）
 # ----------------------------------------------------------------------
-# 🔴 基础镜像已转存到本项目 ACR —— Gitee 云端构建无法访问 Docker Hub，
-#    也不能保证能访问第三方镜像代理。见 scripts/mirror-base-images.sh
+# 🔴 基础镜像已转存到本项目 ACR —— 云端构建不保证能访问 Docker Hub，
+#    第三方镜像代理也不可靠。见 scripts/mirror-base-images.sh
 #
 # 🔴 COPY 路径为什么带 vue/ 前缀：
-#    Gitee 的 build@docker 插件**构建上下文固定为「代码库根目录」**
-#    （已在 pm-system 的构建日志中证实：--local context=<仓库根>）。
+#    构建上下文固定为「代码库根目录」（CI 里是 `docker build -f vue/Dockerfile .`）。
 #    因此 COPY 路径必须相对仓库根书写。
 #    注意：这样写之后，本地 `docker build vue/` 的方式不再适用 ——
 #    本地构建请用 `docker build -f vue/Dockerfile .`（上下文为仓库根）。

@@ -46,10 +46,10 @@ version: '3.8'
 
 services:
   backend:
-    # 方案 B：镜像由 Gitee 云端构建并推送到阿里云 ACR
-    # （见 .workflow/流水线-*.yml 里的 build@docker 步骤）
+    # 方案 B：镜像由 GitHub Actions 云端构建并推送到阿里云 ACR
+    # （见 .github/workflows/build-deploy.yml）
     # 服务器只 pull + up，不再本地编译 Maven —— 部署不再产生内存峰值。
-    # ⚠️ 地址里的 t1longlive 是 ACR 命名空间，与 Gitee 个人空间地址一致
+    # ⚠️ 地址里的 t1longlive 是 ACR 命名空间（与任何代码托管平台的个人空间名无关）
     #
     # 用 `:?` 而非 `:-` 是刻意的：变量缺失时直接报错退出，
     # 避免"静默拉取 latest"这种查不出来的错。

@@ -13,11 +13,10 @@
 #   TARGET_COMMIT=<sha> scripts/deploy.sh   # 回滚：部署指定提交（由 rollback.sh 传）
 #   IMAGE_TAG=<tag> scripts/deploy.sh       # 强制指定镜像 tag（逃生口，一般不用）
 #
-# 镜像 tag 的真相来源只有一个：当前工作区的 HEAD。
-#   构建阶段（Gitee 云端）打 tag = ${GITEE_COMMIT}（= 本次 push 的完整 commit）
-#   部署阶段（本脚本）   算 tag = git rev-parse HEAD
-#   两者是同一个值，前提是部署时 origin/main 没有被更晚的 push 覆盖。
-#   若发生覆盖，pull 会失败并给出明确提示 —— 宁可报错，不部署错版本。
+# 镜像 tag 由 CI 显式传入（IMAGE_TAG），让「跑哪个镜像」与「代码同步到哪」解耦；
+# 手工执行时退回 git rev-parse HEAD。两者都应指向同一个 commit —— 前提是
+# 部署时 origin/main 没有被更晚的 push 覆盖。若被覆盖，脚本会跳过本次部署
+# （见下面的「过期构建」判断）：宁可不动线上，也不部署错版本。
 # ======================================================================
 set -Eeuo pipefail
 
@@ -174,7 +173,9 @@ else
   #   GitHub Actions → CI_COMMIT_SHA（由 .github/workflows/build-deploy.yml 显式传入）
   #   Gitee Go       → GITEE_COMMIT（流水线环境变量自动注入）
   # 实测（2026-09-15）：GITEE_COMMIT 在 shell@agent 里可读。
-  # 兼容两个名字是为了通道切换期无需改动脚本 —— 与 pm-system 的 deploy.sh 保持一致。
+  # ⚠️ Cloudland 的 Gitee 通道已于 2026-10-09 退役，GITEE_COMMIT 不会再被注入。
+  #    这里保留它，只是为了让两个项目的 deploy.sh 保持同构
+  #    （pm-system 仍以 Gitee 作为备用通道）—— 不代表 Cloudland 还依赖 Gitee。
   #
   # 若它已不等于分支最新，说明构建期间又有新 push 进来 —— 本次**跳过部署**，
   # 交给那条更新的流水线去上线。
@@ -182,7 +183,7 @@ else
   # 为什么不"照旧部署"、也不"强制部署旧提交"：
   #   · 照旧部署（reset --hard origin/BRANCH）会拿到新代码、却去拉旧提交的镜像
   #     → pull 报 manifest unknown，白跑一次（吵，但至少安全）
-  #   · 强制锚定 GITEE_COMMIT 部署旧提交 → 可能在新版本之后才落地，
+  #   · 强制锚定 CI 传入的那个提交去部署旧版本 → 可能在新版本之后才落地，
   #     把线上**顺序倒退**成旧版本（静默，且危险）
   #   · 跳过则两种坏结果都不会发生：线上不动，更新的那条流水线负责上线
   CI_COMMIT="${CI_COMMIT_SHA:-${GITEE_COMMIT:-}}"
@@ -200,7 +201,7 @@ fi
 # ---------- 计算镜像 tag ----------
 # 只有两种来源，顺序不能颠倒：
 #   1) 环境变量 IMAGE_TAG —— 运维手工指定（逃生口）
-#   2) git rev-parse HEAD —— 当前代码版本，与云端构建使用的 ${GITEE_COMMIT} 对应
+#   2) git rev-parse HEAD —— 手工执行时用当前代码版本（应与 CI 构建的那个 commit 一致）
 if [ -n "${IMAGE_TAG:-}" ]; then
   TAG_SOURCE="env IMAGE_TAG"
 else
@@ -216,12 +217,12 @@ if [ -n "$TARGET_COMMIT" ]; then
 fi
 
 # ---------- 审计记录：本次部署来自哪条流水线 / 哪个提交 ----------
-# 已实测（2026-09-15）：GITEE_COMMIT / GITEE_BRANCH / GITEE_PIPELINE_BUILD_NUMBER
-# 在 shell@agent 里**都能读到**（此前文档里"不保证能读到"的判断是错的）。
-# 这行保留下来当审计线索：出问题时能直接对上是"哪次构建"把它推上线的。
-# 手工执行（回滚、手动部署）时必然为空，显示 <unset>，属正常。
-# CI_COMMIT_SHA 是 2026-09-24 通道切换到 GitHub Actions 后加的：
-# 日志里 GITEE_* 全为 <unset>、而 CI_COMMIT_SHA 有值 ⇒ 这次部署来自 GitHub Actions。
+# 审计线索：出问题时能直接对上是"哪次构建"把版本推上线的。
+# 判读方法（2026-10-09 起 Cloudland 的主通道是 GitHub Actions）：
+#   CI_COMMIT_SHA 有值 + GITEE_* 全为 <unset>  ⇒ 来自 GitHub Actions（正常）
+#   GITEE_COMMIT 有值                          ⇒ 来自 Gitee 通道 —— Cloudland 已退役，不该再出现
+#   全部为 <unset>                              ⇒ 手工执行（回滚 / 手动部署），属正常
+# GITEE_* 三个变量是 2026-09-15 实测可读后保留的，现在只对 pm-system 的备用通道有意义。
 log "DIAG CI_COMMIT_SHA=${CI_COMMIT_SHA:-<unset>} GITEE_COMMIT=${GITEE_COMMIT:-<unset>} GITEE_BRANCH=${GITEE_BRANCH:-<unset>} GITEE_PIPELINE_BUILD_NUMBER=${GITEE_PIPELINE_BUILD_NUMBER:-<unset>}"
 
 # ---------- 路径守卫：本次变更真的需要重新部署吗 ----------
@@ -234,12 +235,14 @@ log "DIAG CI_COMMIT_SHA=${CI_COMMIT_SHA:-<unset>} GITEE_COMMIT=${GITEE_COMMIT:-<
 #   2026-09-21 的 OOM 雪崩正是在容器重建的内存尖峰上被放大的
 #   （那天两个项目共推了 11 次，每次都让两个 JVM 冷启动一遍）。
 #
-# 🔴 为什么守卫放在这里，而不是去改流水线的 triggers
-#   Gitee Go（个人版）的 push 触发只支持「分支 / Tag / 提交注释」三种匹配，
-#   **没有文件路径过滤** —— 那是 Gitee 企业版流水线的能力。
-#   在 triggers 里猜一个字段名，最坏情况是整个触发配置失效 →
-#   完全不再自动部署，那比"多部署几次"严重得多。
-#   放在这里则完全在版本控制内：可 review、可测试、不会被网页编辑器改掉。
+# 🔴 为什么守卫放在这里，而不是只靠流水线的 triggers
+#   GitHub Actions 已有原生 paths 过滤（见 .github/workflows/build-deploy.yml），
+#   但仍有两条路会绕开它：① workflow_dispatch 手动触发；② 一次提交里同时改了
+#   docs/ 和 src/ —— 流水线整体触发，是否真需要重建容器由这里的判断决定。
+#   放在脚本里则完全在版本控制内：可 review、可测试，且手动部署 / 回滚 /
+#   Jenkins 备用通道也受同一套逻辑保护，不会出现"换个入口就绕过守卫"。
+#   （历史：Gitee Go 个人版的 push 触发只支持「分支 / Tag / 提交注释」三种匹配，
+#    没有文件路径过滤 —— 这是当初把守卫放进脚本的直接原因。）
 #
 # 判定方向刻意用「黑名单」（只有**全部**变更都落在非应用路径下才跳过）：
 #   漏判的后果偏向"多部署一次"（无害），而不是"该部署却跳过了"（危险）。
@@ -287,7 +290,7 @@ log "Pulling dependency images"
 $DC pull mysql redis || true
 
 # ---------- 拉取应用镜像（方案 B：来自云端构建产物）----------
-# 镜像由 Gitee 云端构建（build@docker）并推送到阿里云 ACR，
+# 镜像由 GitHub Actions 云端构建并推送到阿里云 ACR，
 # 服务器只负责拉取运行，不再本地编译 —— 因此不再需要 Maven / Node，
 # 也就没有了本地编译的内存峰值（本机内存仅 1.8G，曾被 OOM 杀掉过）。
 #

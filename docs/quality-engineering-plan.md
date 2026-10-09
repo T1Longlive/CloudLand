@@ -14,7 +14,7 @@
 | 决策    | 选择                                  | 理由                            |
 | ----- | ----------------------------------- | ----------------------------- |
 | 接口框架  | pytest + requests + allure-pytest   | 测开面试主流；为 AI+Python 铺路         |
-| CI 平台 | GitHub Actions（仓库双推 Gitee）          | 面试官最熟；Gitee Go 部署流水线保留        |
+| CI 平台 | GitHub Actions（主通道）                 | 面试官最熟；Gitee Go 额度耗尽后于 2026-10-09 退役 |
 | 仓库结构  | 单仓库加 `testing/` 目录                  | 与项目一体的质量体系叙事                  |
 | 运维增量  | Prometheus + Grafana + Alertmanager | pom 已有 actuator，临门一脚；SRE 能力证明 |
 
@@ -124,7 +124,7 @@ testing/api/
 
 - Playwright HTML 报告：<https://t1longlive.github.io/CloudLand/e2e/>
 
-- 仓库：<https://github.com/T1Longlive/CloudLand（remote> 名 `github`，与 origin(gitee) 双推）
+- 仓库：<https://github.com/T1Longlive/CloudLand>（remote `origin`；Gitee 远端已于 2026-10-09 移除，不再双推）
 
 **首跑失败与修复（面试故事素材：CI 环境与本地差异）**：
 
@@ -143,7 +143,7 @@ testing/api/
 - **触发策略**：随 push/PR 运行（作为质量门禁的一部分）+ `cron '0 */6 * * *'` 每 6 小时定时巡检（北京 8/14/20/2 点）。定时触发时 api/e2e/report 三 job 以 `if: github.event_name != 'schedule'` 跳过，只跑 smoke——重型验证与轻量巡检解耦。
 - **首跑前本地预验证**：本地 curl 确认线上三端点行为（health=UP、land/page 返回数据、前端 200）后才写断言，避免拿猜的契约上 CI。
 
-**W6-7 汇总**：CI 已具备 push 门禁（api 34 + e2e 62 用例）、报告发布（gh-pages：Allure 历史趋势 + Playwright HTML）、线上巡检（smoke 定时）。deploy+smoke 的"部署门禁"形态按决策不做，生产部署仍由 Gitee Go 负责。
+**W6-7 汇总**：CI 已具备 push 门禁（api 34 + e2e 62 用例）、报告发布（gh-pages：Allure 历史趋势 + Playwright HTML）、线上巡检（smoke 定时）。deploy+smoke 的"部署门禁"形态按当时的决策不做。（**2026-10-09 更新**：部署已迁 GitHub Actions，见 `.github/workflows/build-deploy.yml`；Gitee Go 通道退役。）
 
 ### W6-7（CI）预埋的坑（提前知道）
 
@@ -177,7 +177,7 @@ testing/api/
 | 本地 Redis     | 6379，密码 123456                                                                     |
 | 种子测试账号       | 19900000001（客户）/ 19900000002（员工）/ 19900000003（管理员），密码均 `Test@123456`               |
 | ⚠️ 演示账号勿用于测试 | 18140213287 在本地库 power 已非 2，admin 接口会 403                                          |
-| push 即部署     | push 到 main 触发 Gitee Go → deploy.sh → 生产 8.137.114.176                             |
+| push 即部署     | push 到 main（命中 paths）触发 GitHub Actions → 构建推 ACR → deploy.sh → 生产 8.137.114.176 |
 
 ## 7. 进度日志
 

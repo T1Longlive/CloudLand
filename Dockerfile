@@ -2,8 +2,8 @@
 # Cloudland 后端镜像（多阶段构建）
 # ----------------------------------------------------------------------
 # 🔴 基础镜像为什么不用 docker.1panel.live / docker.io：
-#    Gitee 云端构建（build@docker / buildkit）**无法访问 Docker Hub**，
-#    也不能保证能访问第三方镜像代理。
+#    云端构建环境不保证能访问 Docker Hub，第三方镜像代理也不可靠
+#    （docker.1panel.live 已失效）。
 #    这些基础镜像已转存到本项目自己的 ACR，既保证云端可拉取，
 #    也把基础镜像来源固定下来（供应链可控）。
 #    转存命令见 scripts/mirror-base-images.sh
