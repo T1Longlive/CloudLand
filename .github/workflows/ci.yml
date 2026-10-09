@@ -7,7 +7,10 @@
 #   CI 无沙箱密钥 → 生成一次性 RSA 密钥对经环境变量注入
 # - 前端构建时用 VUE_APP_API_BASE_URL 指向本地后端（覆盖 .env.production 的线上地址）
 # - 报告汇总在 report job：Allure 历史来自 gh-pages，连同 Playwright HTML 报告一次性发布
-# - 生产部署仍由 Gitee Go 负责（push Gitee main 触发），本流水线只做质量门禁
+# - 本流水线只做质量门禁，不部署。部署在 build-deploy.yml（2026-09-24 从 Gitee Go 迁来）
+# - ⚠️ 两个流水线是独立的：本文件跑测试，build-deploy.yml 构建 + 部署。
+#    ci 红不会自动挡住 deploy —— 若要串成门禁，把 build-deploy.yml 的触发改成
+#    workflow_run（workflows: ["CI"], types: [completed]）再判断 conclusion == success。
 
 name: CI
 

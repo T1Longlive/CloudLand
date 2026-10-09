@@ -170,7 +170,12 @@ if [ -n "$TARGET_COMMIT" ]; then
 else
   # 正常模式：先判断「本次构建是不是已经过期」。
   #
-  # GITEE_COMMIT 是流水线注入的、本次构建所对应的提交（已实测在 shell@agent 里可读）。
+  # 流水线注入的「本次构建所对应的提交」，两个名字都认：
+  #   GitHub Actions → CI_COMMIT_SHA（由 .github/workflows/build-deploy.yml 显式传入）
+  #   Gitee Go       → GITEE_COMMIT（流水线环境变量自动注入）
+  # 实测（2026-09-15）：GITEE_COMMIT 在 shell@agent 里可读。
+  # 兼容两个名字是为了通道切换期无需改动脚本 —— 与 pm-system 的 deploy.sh 保持一致。
+  #
   # 若它已不等于分支最新，说明构建期间又有新 push 进来 —— 本次**跳过部署**，
   # 交给那条更新的流水线去上线。
   #
@@ -180,8 +185,9 @@ else
   #   · 强制锚定 GITEE_COMMIT 部署旧提交 → 可能在新版本之后才落地，
   #     把线上**顺序倒退**成旧版本（静默，且危险）
   #   · 跳过则两种坏结果都不会发生：线上不动，更新的那条流水线负责上线
-  if [ -n "${GITEE_COMMIT:-}" ] && [ "$GITEE_COMMIT" != "$(git rev-parse "origin/$BRANCH")" ]; then
-    log "Skipping deploy: built commit ${GITEE_COMMIT} is no longer the tip of ${BRANCH}"
+  CI_COMMIT="${CI_COMMIT_SHA:-${GITEE_COMMIT:-}}"
+  if [ -n "$CI_COMMIT" ] && [ "$CI_COMMIT" != "$(git rev-parse "origin/$BRANCH")" ]; then
+    log "Skipping deploy: built commit $CI_COMMIT is no longer the tip of ${BRANCH}"
     log "  分支最新已是 $(git rev-parse "origin/$BRANCH")，说明构建期间又有 push。"
     log "  本次不动线上 —— 那条更新的流水线会负责部署最新版本。"
     exit 0
@@ -214,7 +220,9 @@ fi
 # 在 shell@agent 里**都能读到**（此前文档里"不保证能读到"的判断是错的）。
 # 这行保留下来当审计线索：出问题时能直接对上是"哪次构建"把它推上线的。
 # 手工执行（回滚、手动部署）时必然为空，显示 <unset>，属正常。
-log "DIAG GITEE_COMMIT=${GITEE_COMMIT:-<unset>} GITEE_BRANCH=${GITEE_BRANCH:-<unset>} GITEE_PIPELINE_BUILD_NUMBER=${GITEE_PIPELINE_BUILD_NUMBER:-<unset>}"
+# CI_COMMIT_SHA 是 2026-09-24 通道切换到 GitHub Actions 后加的：
+# 日志里 GITEE_* 全为 <unset>、而 CI_COMMIT_SHA 有值 ⇒ 这次部署来自 GitHub Actions。
+log "DIAG CI_COMMIT_SHA=${CI_COMMIT_SHA:-<unset>} GITEE_COMMIT=${GITEE_COMMIT:-<unset>} GITEE_BRANCH=${GITEE_BRANCH:-<unset>} GITEE_PIPELINE_BUILD_NUMBER=${GITEE_PIPELINE_BUILD_NUMBER:-<unset>}"
 
 # ---------- 路径守卫：本次变更真的需要重新部署吗 ----------
 # 与 pm-system 的 scripts/deploy.sh 同源（那边先加，2026-09-21）。
