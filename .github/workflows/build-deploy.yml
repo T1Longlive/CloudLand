@@ -160,7 +160,7 @@ jobs:
           echo "frontend : $ACR_HOST/$ACR_NAMESPACE/cloudland-frontend:${{ github.sha }}"
 
   deploy:
-    name: 部署到阿里云 ECS
+    name: 部署到腾讯云服务器
     needs: build
     runs-on: ubuntu-latest
     # 部署只是 SSH + 拉镜像 + 健康检查，正常 2~3 分钟。
@@ -191,9 +191,12 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
-          script_stop: true
           script: |
             set -euo pipefail
+            # appleboy/ssh-action 的远程 shell 不会设置登录用户的 HOME。
+            # 不显式设置的话，git 读不到 /root/.ssh/config 与部署密钥，
+            # docker 也读不到 /root/.docker/config.json 里的 ACR 登录凭据。
+            export HOME=/root
             cd /root/cloudland
             # 先同步代码再执行脚本 —— 否则 deploy.sh 内部的 git reset --hard
             # 会把「正在执行的自己」覆盖掉，bash 后续读到的行可能与开头不一致。

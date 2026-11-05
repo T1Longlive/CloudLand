@@ -122,7 +122,7 @@ services:
     restart: unless-stopped
 
   mysql:
-    image: docker.1panel.live/library/mysql:8.0
+    image: mysql:8.0
     container_name: cloudland-mysql
     # 容器内存上限 —— 爆炸半径控制：超了只杀这个容器，不波及整机/dockerd
     mem_limit: 384m
@@ -154,7 +154,7 @@ services:
     restart: unless-stopped
 
   redis:
-    image: docker.1panel.live/library/redis:7-alpine
+    image: redis:7-alpine
     container_name: cloudland-redis
     # 容器内存上限 —— 爆炸半径控制：超了只杀这个容器，不波及整机/dockerd
     mem_limit: 128m
