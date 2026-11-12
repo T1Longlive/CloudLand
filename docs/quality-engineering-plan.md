@@ -1,7 +1,7 @@
 # 质量效能路线图与进度跟踪
 
 > 用途：跨会话接手文档。任何新对话读本文件即可了解方向决策、整体计划、当前进度与下一步任务，无需重新分析。
-> 建立:2026-09-02 · 最近更新:2026-09-02(W6-7 全部收口:四 job CI+Pages 报告+定时线上巡检,下一站 W8-10 E2E 扩容+监控)
+> 建立:2026-09-02 · 最近更新:2026-11-12(W8 质量门禁闭环:CI 红挡部署/分层调度/覆盖率/修复 webkit 假 flaky,详见第 8 节)
 
 ## 1. 背景与方向决策
 
@@ -164,6 +164,8 @@ testing/api/
 3. **CI 从 0 到 1**：环境编排踩坑（W6-7 做完后补全）
 4. **从 0 搭可观测体系**：为什么选 micrometer、大盘放哪些指标、告警阈值怎么定（W8-10 做完后补全）
 5. **UI 缺陷的测试价值**：headless E2E 逼出真实用户会踩的级联面板视口外缺陷
+6. **"假 flaky" 排查（W8）**：webkit 两用例稳定失败而 Edge/curl 全过 → 不是随机不稳定，是宿主 HTTP_PROXY 污染浏览器网络栈。用 trace、手工预检、Tomcat access log、最小探针四步定位，修复落在测试配置层而非业务代码
+7. **门禁死锁（W8）**：把 CI 结论串成部署门禁后，意识到线上巡检失败会永久挡住"发修复版本"，给 smoke 加 continue-on-error 解耦
 
 ## 6. 本地环境速查
 
@@ -197,4 +199,53 @@ testing/api/
 
 - **2026-09-02**:W6 收官:CI Run #2 三 job 全绿(api 34 用例/e2e 62 用例/report 发布),GitHub Pages 上线(Allure 根路径 + Playwright /e2e/,用户手动开启 Pages 源=gh-pages)。首跑 API job 失败→根因=CI 全新库无 199 段 seed(本地预置过未暴露)→修复=api job 显式导入 seed.sql 并回查,教训已记入面试故事。
 - **2026-09-02**:W7 完成:smoke 线上只读冒烟 job 上线(commit 17dfa40,Run #4 四 job 全绿验证)。四步断言(前端 200/health UP/土地分页/产品分页,均含业务码与数据量校验),随 push 门禁运行 + 每 6 小时 cron 巡检;定时触发时重型 job 条件跳过,只跑轻量 smoke。**W6-7 整体收口**。
+
+## 8. W8 质量门禁闭环（2026-11-12）
+
+**接手时发现的三个一致性问题**：① `testing/api` 三层重构（services/、common/http.py、data_loader.py、data/、pytest.ini）全是未跟踪文件，GitHub CI 跑的还是旧版 client.py —— 本地绿 ≠ CI 绿；② `ci.yml` 与 `build-deploy.yml` 完全独立，CI 红照样部署；③ `pytest.ini` 定义了 6 个 marker 只用了 1 个，无任何覆盖率度量。
+
+**本轮实测基线（本地真实环境，非文档自述）**
+
+| 项 | 结果 |
+|---|---|
+| Java 单测 `mvn test` | 17/17 |
+| 契约测试（离线源码解析） | 7/7，0.01s |
+| 接口自动化（真实 MySQL/Redis/后端） | 34/34，2.25s |
+| PR 快速集 `-m "smoke or p0"` | 27 通过 / 7 deselected |
+| 框架代码覆盖率 pytest-cov | 98%（192 行，3 行未覆盖） |
+| E2E（webkit + edge-ci） | 修复前 53/62 → 修复后连续两轮 62/62，junit failures=0 |
+
+**"假 flaky" 根因与修复（面试故事 6，可复现）**
+
+- 现象：`npm run test:ci` 中 webkit 的「密码登录成功」「F01 注册成功」稳定失败（单独复跑仍是同样 2 条），Edge 全过，后端/数据库/接口用例均正常。
+- 排查链：① Playwright trace 报 `Origin http://localhost:8080 is not allowed by Access-Control-Allow-Origin. Status code: 204`，正式 POST 无响应；② curl 手工发 OPTIONS 预检（带 `accept`/`origin` 等头）返回 200 + 完整 ACAO，后端 CORS 配置无问题；③ 重启后端开 Tomcat access log，失败时**无任何 OPTIONS 记录** → 请求根本没到后端；④ 查环境变量发现宿主注入 `HTTP_PROXY=http://127.0.0.1:51794` 且无 NO_PROXY；⑤ 最小 webkit 探针里 delete 代理变量后 POST 恢复 200，access log 出现 `OPTIONS /api/user/login 200`。
+- 结论：代理对 localhost 的 CORS 预检返回 204 且不带 CORS 头，只有 WebKit 走这条路径；CI runner 不注入代理，所以线上 62/62 全绿而本地稳定 60/62。**不是业务缺陷、不是随机 flaky**。
+- 修复：`vue/playwright.config.js` 在 config 加载时清除 6 个代理环境变量（测试只访问本机服务），不改任何业务代码。修复后连续两轮全量 E2E 62/62。
+- 教训：测试环境的网络路径必须与 CI/生产一致；"只有某个浏览器挂"先查环境差异，别急着加 retries 把问题盖住。
+
+**门禁闭环设计**
+
+- `build-deploy.yml` 改 `workflow_run`（workflows: ["CI"], types: [completed], branches: [main]），build job 只在 `conclusion == success && event == 'push' && head_branch == 'main'` 时执行；PR、定时巡检、CI 失败的运行都不部署。
+- 制品与代码统一用 `DEPLOY_SHA = workflow_run.head_sha || github.sha`（checkout ref 显式指定），避免 workflow_run 下 `github.sha` 指向默认分支最新提交，导致「构建出未被测试过的版本」。
+- 原 push+paths 守卫在 workflow_run 事件下不受 GitHub 支持，但 `scripts/deploy.sh` 的 NON_APP_PATHS 路径守卫仍在，纯文档变更不会重建容器。
+- **防死锁**：`ci.yml` 的 smoke job 加 `continue-on-error: true`。线上自身故障（当前 8.137.114.176 返回 502）若让 CI 结论变红，会因门禁串联导致「线上挂了 → 修复版本也发不出去」。巡检只负责告警，放行/拦截由 api + e2e 两个测试 job 决定。
+- 应急通道保留 `workflow_dispatch`（绕过门禁，仅用于故障恢复，记录触发人）。
+
+**分层调度与覆盖率**
+
+- 各 `test_*.py` 用模块级 `pytestmark` 打标：auth/contract=smoke，user/pay=p0，order=regression。PR 跑 `-m "smoke or p0"`（27 条），push main 与 UTC 18 点（北京 02:00）夜间 cron 跑全量 34 条 + E2E 全量；每 6 小时的 schedule 仍只跑线上只读巡检。
+- `requirements.txt` 加 `pytest-cov`，CI 上传 `coverage.xml`。**口径要说清**：这里量的是 Python 测试框架自身代码（common/、services/）覆盖率 98%，不是后端 Java 代码覆盖率；后端需另接 JaCoCo agent，简历里别混为一谈。
+
+**仍未完成（别写进简历）**
+
+- 线上 8.137.114.176 当前 502，服务器侧未恢复，定时巡检仍在告警；需登录服务器排查，本地无法处理。
+- JaCoCo 后端代码覆盖率未接入。
+- 前端单测仍为 0；接口覆盖仍为 12/36 端点；性能/压测与 Prometheus 监控未做。
+- 62/62 连续全绿仅本地验证两轮，5 次连续稳定性待 CI 连续运行与 Allure 历史趋势确认。
+- 本轮改动只做本地 commit，**未 push**；push 会触发真实 CI 与生产部署，需本人确认。
+
+## 9. 进度日志（续）
+
+- **2026-11-12**：W8 质量门禁闭环收口。提交 testing/api 三层重构、串联 CI→部署门禁、marker 分层调度 + pytest-cov（98%）、修复 webkit 代理导致的「CORS 假 flaky」（62/62 全绿）、smoke 防死锁；同步修正文档漂移与 .gitignore。
+
 

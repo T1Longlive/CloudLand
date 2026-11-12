@@ -8,6 +8,9 @@ power=0/status=1/debt=0。此用例固化该安全修复，防止回归。
 import allure
 import pytest
 
+# 分层：注册提权漏洞回归属 P0 安全链路，PR 必跑
+pytestmark = pytest.mark.p0
+
 from common.assertions import (
     PHONE_EXIST,
     REGISTER_OK,

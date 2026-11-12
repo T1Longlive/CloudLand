@@ -12,6 +12,10 @@ import re
 from pathlib import Path
 
 import allure
+import pytest
+
+# 分层：纯源码解析 0.01s、不依赖服务，最轻量的冒烟门禁
+pytestmark = pytest.mark.smoke
 
 # 仓库根目录（testing/api/ 向上两级）
 ROOT = Path(__file__).resolve().parents[2]

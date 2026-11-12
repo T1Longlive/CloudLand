@@ -14,6 +14,9 @@ import re
 import allure
 import pytest
 
+# 分层：金额防篡改/支付前置校验属 P0 安全链路，PR 必跑
+pytestmark = pytest.mark.p0
+
 from common.assertions import ADD_ERR, ADD_OK, UPDATE_OK, assert_success
 from conftest import SEED
 

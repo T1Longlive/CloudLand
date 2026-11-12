@@ -7,10 +7,11 @@
 #   CI 无沙箱密钥 → 生成一次性 RSA 密钥对经环境变量注入
 # - 前端构建时用 VUE_APP_API_BASE_URL 指向本地后端（覆盖 .env.production 的线上地址）
 # - 报告汇总在 report job：Allure 历史来自 gh-pages，连同 Playwright HTML 报告一次性发布
-# - 本流水线只做质量门禁，不部署。部署在 build-deploy.yml（2026-09-24 从 Gitee Go 迁来）
-# - ⚠️ 两个流水线是独立的：本文件跑测试，build-deploy.yml 构建 + 部署。
-#    ci 红不会自动挡住 deploy —— 若要串成门禁，把 build-deploy.yml 的触发改成
-#    workflow_run（workflows: ["CI"], types: [completed]）再判断 conclusion == success。
+# - 本流水线只做质量门禁，不部署；build-deploy.yml 已用 workflow_run 串联本流水线，
+#   只放行「push main 触发且 conclusion == success」的那次运行 —— CI 红会真正挡住部署。
+#   smoke 为线上只读巡检，continue-on-error，不参与门禁判定（避免线上故障导致发布死锁）。
+# - 分层调度：PR 只跑 pytest 的 smoke/p0 子集，push main 与夜间跑全量 34 条。
+#   schedule 两条：每 6 小时轻量线上巡检（只跑 smoke job）、UTC 18 点（北京 02:00）全量回归。
 
 name: CI
 
@@ -21,8 +22,10 @@ on:
     branches: [main]
   workflow_dispatch:
   schedule:
-    # 线上巡检：每 6 小时跑一次只读冒烟（UTC 0/6/12/18 点 = 北京 8/14/20/2 点）
+    # 线上巡检：每 6 小时一次只读冒烟（UTC 0/6/12/18 点 = 北京 8/14/20/2 点）
     - cron: '0 */6 * * *'
+    # 夜间全量回归：UTC 18 点 = 北京次日 02:00，api + e2e 跑全量
+    - cron: '0 18 * * *'
 
 # 同分支新推送取消旧运行，避免 gh-pages 发布互相竞争
 concurrency:
@@ -35,7 +38,7 @@ permissions:
 jobs:
   api:
     name: API 测试（pytest + Allure）
-    if: github.event_name != 'schedule'
+    if: github.event_name != 'schedule' || github.event.schedule == '0 18 * * *'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -121,9 +124,20 @@ jobs:
       - name: 安装 pytest 依赖
         run: pip install -r testing/api/requirements.txt
 
-      - name: 运行 API 测试（34 用例）
+      - name: 运行 API 测试（PR 跑 smoke/p0，push 与夜跑全量）
         working-directory: testing/api
-        run: python -m pytest . -v --alluredir=allure-results
+        env:
+          # PR 只跑 27 条核心用例（登录鉴权 + 码表契约 + 安全回归），34 条全量留给 push/夜间。
+          PYTEST_MARKERS: ${{ github.event_name == 'pull_request' && 'smoke or p0' || '' }}
+        run: |
+          # 覆盖率统计的是 Python 框架自身代码（common/、services/），不是后端 Java 代码；
+          # 后端代码覆盖率需另接 JaCoCo agent，勿把两者混为一谈。
+          COV_ARGS="--cov=common --cov=services --cov-report=term-missing --cov-report=xml:coverage.xml"
+          if [ -n "$PYTEST_MARKERS" ]; then
+            python -m pytest . -v -m "$PYTEST_MARKERS" $COV_ARGS --alluredir=allure-results
+          else
+            python -m pytest . -v $COV_ARGS --alluredir=allure-results
+          fi
 
       - name: 失败时输出后端日志
         if: failure()
@@ -137,9 +151,17 @@ jobs:
           path: testing/api/allure-results/
           retention-days: 14
 
+      - name: 上传框架覆盖率（pytest-cov）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-coverage
+          path: testing/api/coverage.xml
+          retention-days: 14
+
   e2e:
     name: E2E 测试（Playwright）
-    if: github.event_name != 'schedule'
+    if: github.event_name != 'schedule' || github.event.schedule == '0 18 * * *'
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
@@ -265,6 +287,11 @@ jobs:
     name: 线上冒烟（只读）
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # 巡检不阻断门禁：build-deploy.yml 用 workflow_run 串联本流水线后，
+    # 若线上自身故障（如当前 8.137.114.176 502）让 CI 结论变红，
+    # 就会出现「线上挂了 → CI 红 → 修复版本也部署不了」的死锁。
+    # 巡检只负责告警与可观测，放行/拦截由 api + e2e 两个测试 job 决定。
+    continue-on-error: true
     env:
       PROD_BASE: http://8.137.114.176
     steps:
@@ -307,7 +334,7 @@ jobs:
   report:
     name: 汇总报告发布（gh-pages）
     needs: [api, e2e]
-    if: always() && github.event_name != 'schedule'
+    if: always() && (github.event_name != 'schedule' || github.event.schedule == '0 18 * * *')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

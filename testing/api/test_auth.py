@@ -7,51 +7,37 @@ HTTP 状态码契约（对应 MyInterceptor + 前端 interceptor.js）：
 - 403 + X-Forbidden-Reason: status → 账号禁用；power → 权限不足
 """
 import allure
+import pytest
 
-from common.assertions import (
-    CODE_ERR,
-    LOGIN_OK,
-    PASSWORD_ERR,
-    PHONE_NO_EXIST,
-    assert_http,
-    assert_success,
-)
+# 分层：登录/鉴权是核心冒烟链路，PR 必跑
+pytestmark = pytest.mark.smoke
+
+from common.assertions import assert_http, assert_success
 from common.client import ApiClient
+from common.data_loader import load_yaml
 from conftest import BASE_URL, MASTER_CODE, SEED
+
+LOGIN_CASES = load_yaml("login_cases.yaml")
 
 
 @allure.epic("API 自动化层")
 @allure.feature("认证授权")
 class TestLogin:
     @allure.story("密码登录")
-    @allure.title("正确账密 → LOGIN_OK(20005)，token 位于 msg 字段")
-    def test_login_success(self, api):
-        account = SEED["customer"]
-        resp = api.login(account["phone"], account["password"], master_code=MASTER_CODE)
-        body = assert_success(resp, LOGIN_OK)
-        assert body["msg"] and len(body["msg"]) > 20, "msg 应携带 JWT token"
-        assert body["data"]["power"] == account["power"]
-
-    @allure.title("错误密码 → PASSWORD_ERR(20002)")
-    def test_login_wrong_password(self, api):
-        resp = api.login(SEED["customer"]["phone"], "wrong_password", master_code=MASTER_CODE)
-        assert_success(resp, PASSWORD_ERR)
-
-    @allure.title("不存在的账号 → PHONE_NO_EXIST(20001)")
-    def test_login_phone_not_exist(self, api):
-        resp = api.login("10000000000", "whatever", master_code=MASTER_CODE)
-        assert_success(resp, PHONE_NO_EXIST)
-
-    @allure.title("错误验证码 → CODE_ERR(30003)")
-    def test_login_wrong_code(self, api):
-        account = SEED["customer"]
-        resp = api.post(
-            "/user/login",
-            frond=True,
-            code="999999",  # 非万能码且 Redis 无此验证码
-            json={"phone": account["phone"], "password": account["password"]},
+    @allure.title("数据驱动：登录成功 / 错误密码 / 账号不存在 / 验证码错误")
+    @pytest.mark.p0
+    @pytest.mark.parametrize("case", LOGIN_CASES, ids=lambda c: c["id"])
+    def test_login(self, api, case):
+        resp = api.login(
+            case["phone"],
+            case["password"],
+            master_code=case.get("code", MASTER_CODE),
         )
-        assert_success(resp, CODE_ERR)
+        body = assert_success(resp, case["expect_code"])
+
+        if case.get("check_token"):
+            assert body["msg"] and len(body["msg"]) > 20, "msg 应携带 JWT token"
+            assert body["data"]["power"] == case["expect_power"]
 
 
 @allure.epic("API 自动化层")

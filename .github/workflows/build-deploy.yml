@@ -24,7 +24,7 @@ name: build-and-deploy
 #      要刷新它们需另建一个 refresh workflow（pm-system 那份转存的是 Java 17 那一套，不适用）。
 #
 # ⚠️ 两条铁律（与 scripts/deploy.sh 的契约）：
-#   · 镜像 tag = ${{ github.sha }}，与服务器仓库 HEAD 必须是同一个 commit
+#   · 镜像 tag = ${{ env.DEPLOY_SHA }}，与服务器仓库 HEAD 必须是同一个 commit
 #   · GHA 只负责「构建 + 通知服务器」，不直接碰容器 —— 部署逻辑仍在 deploy.sh 里
 #
 # ⚠️ 代码源必须同步（这是能否切通道的关键前提）：
@@ -35,32 +35,37 @@ name: build-and-deploy
 #     要么把服务器 origin 改成 GitHub（推荐，单一真相来源）。
 # ======================================================================
 
+# ⚠️ 质量门禁闭环（2026-11-12）：本流水线不再由 push 直接触发。
+#   ci.yml 在 main 上跑完且 conclusion == success 才触发这里；PR 的 CI 结果、
+#   每 6 小时的线上巡检（schedule）、以及 CI 失败的那次运行都不会触发部署。
+#   原 push+paths 守卫在 workflow_run 事件下不受 GitHub 支持，但 deploy.sh 内
+#   已有 NON_APP_PATHS 路径守卫，纯文档变更依旧会被跳过，不会重建容器。
+#   应急通道保留 workflow_dispatch（绕过门禁，仅用于故障恢复，会记录触发人）。
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
     branches: [main]
-    paths:
-      - 'pom.xml'
-      - 'src/**'
-      - 'Dockerfile'
-      - 'vue/src/**'
-      - 'vue/public/**'
-      - 'vue/package.json'
-      - 'vue/package-lock.json'
-      - 'vue/vue.config.js'
-      - 'vue/babel.config.js'
-      - 'vue/Dockerfile'
-      - 'docker-compose.yml'
-      - 'scripts/**'
-      - '.github/workflows/build-deploy.yml'
   workflow_dispatch:
 
 env:
   ACR_HOST: crpi-jzqyelh9p5zb0dmu.cn-chengdu.personal.cr.aliyuncs.com
   ACR_NAMESPACE: t1longlive
+  # workflow_run 下 github.sha 是默认分支 HEAD，可能与 CI 实际测试的提交不一致。
+  # 用被触发那次 CI 运行的 head_sha 作为唯一制品标识，保证
+  # 「镜像 tag = 服务器 HEAD = 被测试通过的 commit」三者一致。
+  DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
 
 jobs:
   build:
     name: 构建并推送镜像
+    # 门禁判断放在 build 上；deploy 因 needs: build 会随之一并跳过。
+    # 只放行「由 push main 触发的 CI 且成功」；PR、定时巡检、手动触发 CI 都不部署。
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     # 后端 Java 8 全量编译 + 前端 npm install/build，冷构建实测 15~25 分钟。
     # 30 分钟留了余量，同时避免卡死时空转烧额度。
@@ -68,6 +73,9 @@ jobs:
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
+        with:
+          # 必须与被测试的那次 CI 运行同一提交，否则会构建出未经验证的版本。
+          ref: ${{ env.DEPLOY_SHA }}
 
       - name: 体检：ACR Secrets 是否就位
         # Secret 缺失时 docker/login-action 只报一句含糊的
@@ -109,7 +117,7 @@ jobs:
           set -euo pipefail
           docker build \
             -f ./Dockerfile \
-            -t cloudland-backend:${{ github.sha }} \
+            -t cloudland-backend:${{ env.DEPLOY_SHA }} \
             .
 
       - name: Trivy 扫描后端镜像（只报告）
@@ -119,7 +127,7 @@ jobs:
         #   基线收敛后再改 exit-code '1' 转硬门禁 —— 顺序反了只会得到一条天天红的流水线。
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: cloudland-backend:${{ github.sha }}
+          image-ref: cloudland-backend:${{ env.DEPLOY_SHA }}
           format: 'table'
           severity: 'CRITICAL,HIGH'
           ignore-unfixed: true
@@ -128,21 +136,21 @@ jobs:
       - name: 推送后端镜像
         run: |
           set -euo pipefail
-          docker tag cloudland-backend:${{ github.sha }} $ACR_HOST/$ACR_NAMESPACE/cloudland-backend:${{ github.sha }}
-          docker push $ACR_HOST/$ACR_NAMESPACE/cloudland-backend:${{ github.sha }}
+          docker tag cloudland-backend:${{ env.DEPLOY_SHA }} $ACR_HOST/$ACR_NAMESPACE/cloudland-backend:${{ env.DEPLOY_SHA }}
+          docker push $ACR_HOST/$ACR_NAMESPACE/cloudland-backend:${{ env.DEPLOY_SHA }}
 
       - name: 构建前端镜像（先不推送）
         run: |
           set -euo pipefail
           docker build \
             -f ./vue/Dockerfile \
-            -t cloudland-frontend:${{ github.sha }} \
+            -t cloudland-frontend:${{ env.DEPLOY_SHA }} \
             .
 
       - name: Trivy 扫描前端镜像（只报告）
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: cloudland-frontend:${{ github.sha }}
+          image-ref: cloudland-frontend:${{ env.DEPLOY_SHA }}
           format: 'table'
           severity: 'CRITICAL,HIGH'
           ignore-unfixed: true
@@ -151,13 +159,13 @@ jobs:
       - name: 推送前端镜像
         run: |
           set -euo pipefail
-          docker tag cloudland-frontend:${{ github.sha }} $ACR_HOST/$ACR_NAMESPACE/cloudland-frontend:${{ github.sha }}
-          docker push $ACR_HOST/$ACR_NAMESPACE/cloudland-frontend:${{ github.sha }}
+          docker tag cloudland-frontend:${{ env.DEPLOY_SHA }} $ACR_HOST/$ACR_NAMESPACE/cloudland-frontend:${{ env.DEPLOY_SHA }}
+          docker push $ACR_HOST/$ACR_NAMESPACE/cloudland-frontend:${{ env.DEPLOY_SHA }}
 
       - name: 输出本次制品
         run: |
-          echo "backend  : $ACR_HOST/$ACR_NAMESPACE/cloudland-backend:${{ github.sha }}"
-          echo "frontend : $ACR_HOST/$ACR_NAMESPACE/cloudland-frontend:${{ github.sha }}"
+          echo "backend  : $ACR_HOST/$ACR_NAMESPACE/cloudland-backend:${{ env.DEPLOY_SHA }}"
+          echo "frontend : $ACR_HOST/$ACR_NAMESPACE/cloudland-frontend:${{ env.DEPLOY_SHA }}"
 
   deploy:
     name: 部署到腾讯云服务器
@@ -204,8 +212,8 @@ jobs:
             git reset --hard origin/main
             # IMAGE_TAG 由 CI 显式指定 —— 服务器不再用 git rev-parse HEAD 去猜，
             # 「跑哪个版本的镜像」与「代码同步到哪」解耦，即使同步慢一步也不会拉错 tag。
-            export IMAGE_TAG=${{ github.sha }}
+            export IMAGE_TAG=${{ env.DEPLOY_SHA }}
             # CI_COMMIT_SHA 供 deploy.sh 的竞态守卫使用
             # （构建期间又有新 push 时跳过本次部署，交给更新的那次流水线）
-            export CI_COMMIT_SHA=${{ github.sha }}
+            export CI_COMMIT_SHA=${{ env.DEPLOY_SHA }}
             /bin/bash scripts/deploy.sh main

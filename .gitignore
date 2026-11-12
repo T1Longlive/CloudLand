@@ -42,3 +42,5 @@ config/application-local.yml
 __pycache__/
 .pytest_cache/
 testing/api/allure-results/
+testing/api/.coverage
+testing/api/coverage.xml

@@ -1,0 +1,28 @@
+# 登录用例数据（数据驱动）
+# 账号与 conftest.py 的 SEED.customer 保持一致：19900000001 / Test@123456
+# code 默认万能码 000000；wrong_code 用 999999（Redis 中不存在该验证码）
+- id: login_ok
+  phone: "19900000001"
+  password: "Test@123456"
+  code: "000000"
+  expect_code: 20005
+  expect_power: 0
+  check_token: true
+
+- id: wrong_password
+  phone: "19900000001"
+  password: "wrong_password"
+  code: "000000"
+  expect_code: 20002
+
+- id: phone_not_exist
+  phone: "10000000000"
+  password: "whatever"
+  code: "000000"
+  expect_code: 20001
+
+- id: wrong_code
+  phone: "19900000001"
+  password: "Test@123456"
+  code: "999999"
+  expect_code: 30003

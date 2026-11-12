@@ -9,6 +9,9 @@
 import allure
 import pytest
 
+# 分层：订单状态机/库存一致性，全量回归覆盖，PR 快速集不跑
+pytestmark = pytest.mark.regression
+
 from common.assertions import ADD_ERR, ADD_OK, DELETE_OK, POWER_ERR, assert_success
 from conftest import SEED
 
