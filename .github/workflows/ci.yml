@@ -293,6 +293,10 @@ jobs:
       # E2E 登录必须过验证码这一关，用万能码把"收邮件"从链路里摘掉
       CODE_MASTER_ENABLED: 'true'
       CODE_MASTER_VALUE: '000000'
+      # 前端打 API 的基址（编译期注入，不是运行期）：必须带 /api，
+      # 且显式钉 127.0.0.1 —— 仓库里没有 .env.local（那是本地未跟踪文件），
+      # 不注入就会走到 app.js 的兜底值，历史上兜底值少写 /api 导致全部接口 404。
+      VUE_APP_API_BASE_URL: http://127.0.0.1:9090/api
       E2E_BASE_URL: http://127.0.0.1:8080
       E2E_API_BASE_URL: http://127.0.0.1:9090/api
       E2E_MASTER_CODE: '000000'
