@@ -1,33 +1,53 @@
-# -*- coding: utf-8 -*-
-"""订单业务层：下单、查询、删除、后台改状态。"""
+"""订单业务层：对应 OrderController。
+
+订单是本项目最容易出越权问题的地方（"我的订单"按 userId 查），
+所以这里的注释重点写清"哪个参数代表身份、谁来决定它"。
+"""
+import json
 
 
 class OrderService:
-    def __init__(self, http):
-        self.http = http
+    def __init__(self, client):
+        self.client = client
 
-    def add_order(self, pid, num, uid=None):
-        """下单。客户路径 uid 由服务端强制为本人；员工/管理员需显式传 uid。"""
-        order = {"pid": pid, "num": num}
-        if uid is not None:
-            order["uid"] = uid
-        return self.http.post("/order", json=order)
+    def my_orders(self, user_id: int):
+        """查某人的订单（前台共享接口 POST /order/order）。
 
-    def my_orders(self, uid=None):
-        """查询订单列表（POST /order/order）。返回订单 dict 列表（键为小写 pid/uid）。"""
-        body = {"id": uid if uid is not None else 0}
-        resp = self.http.post("/order/order", json=body)
-        return resp.json().get("data", [])
+        注意入参形式：后端直接 @RequestBody User，只用到里面的 id。
+        这意味着 userId 完全由调用方给，归属校验必须靠 Service 层，是重点测点。
+        """
+        return self.client.post("/order/order", json={"id": user_id})
 
-    def find_order_by_pid(self, pid, uid=None):
-        """按商品 id 在本人订单中查找，返回订单 dict 或 None。"""
-        return next((o for o in self.my_orders(uid) if o.get("pid") == pid), None)
+    def create(self, p_id: int, num: int, user_id: int = None):
+        """下单（POST /order，@RequestBody Order2）。num=-1 表示土地订单。
 
-    def delete_order(self, order_id):
-        return self.http.delete(f"/order/{order_id}")
+        不传 user_id 时由服务端按登录态回填（客户）；员工/管理员可代录。
+        注意：下单会锁地/扣库存，调用方必须负责删单回滚或清理。
+        键名用全小写 pid/uid：Lombok 的 pId/uId 经 Jackson 绑定后就是小写。
+        """
+        body = {"pid": p_id, "num": num}
+        if user_id is not None:
+            body["uid"] = user_id
+        return self.client.post("/order", json=body)
 
-    def mark_order_paid(self, order_ids, status=1, pay_time=True):
-        """后台批量更新订单状态（PUT /order，query 参数，admin 专用）。"""
-        ids = order_ids if isinstance(order_ids, list) else [order_ids]
-        query = "&".join(f"ids={i}" for i in ids)
-        return self.http.put(f"/order?{query}&status={status}&time={str(pay_time).lower()}")
+    def page(self, order: dict = None, page_num: int = 1, page_size: int = 5):
+        """后台订单分页（ADMIN_RULES，需 power>=1）。"""
+        return self.client.post(
+            "/order/page",
+            data={
+                "pageNum": page_num,
+                "pageSize": page_size,
+                "order": json.dumps(order or {}, ensure_ascii=False),
+            },
+        )
+
+    def update_status(self, ids, status: int, time: bool = False):
+        """批量改订单状态（ADMIN_RULES）。"""
+        return self.client.put(
+            "/order",
+            data=[("ids", i) for i in list(ids)] + [("status", status), ("time", str(time).lower())],
+        )
+
+    def delete(self, order_id: int):
+        """删除订单（前后台共享接口 DELETE /order/{id}）。"""
+        return self.client.delete(f"/order/{order_id}")

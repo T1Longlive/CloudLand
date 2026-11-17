@@ -1,0 +1,82 @@
+# 登录接口数据驱动用例
+#
+# 每一段 = 一条用例。加场景只加一段 yaml，不碰 Python 代码。
+# request 里的键会被直接展开成 AuthService.login(**request)，所以键名必须和该方法参数一致。
+# expect 里的键由 tests/test_auth.py 统一消费，含义见下面注释。
+#
+# expect 字段说明：
+#   http         期望的 HTTP 状态码（业务失败也是 200，鉴权拦截才是 401/402/403）
+#   code         期望的业务码（Code.java 里的常量值）
+#   has_token    登录成功时 JWT 应出现在 msg 字段
+#   data_is_null 响应 data 是否应为 null（失败场景通常为 null）
+#
+# 业务码对照：20005 登录成功 / 20002 密码错误 / 20001 账号不存在
+#             30003 验证码错误 / 20008 权限不足
+
+- name: login_ok
+  title: 客户账号密码正确，登录成功
+  # power=0 的客户账号必须带 frond 头，否则被拦成权限不足
+  request:
+    phone: "19900000001"
+    password: "Test@123456"
+    frond: true
+  expect:
+    http: 200
+    code: 20005
+    has_token: true
+    data_is_null: false
+
+- name: wrong_password
+  title: 密码错误，登录被拒
+  # 关键点：HTTP 仍是 200，只有业务码是 20002。
+  # 这就是"必须双层断言"的活证据 —— 只判 HTTP 200 会把这条失败当成成功。
+  request:
+    phone: "19900000001"
+    password: "Wrong@123456"
+    frond: true
+  expect:
+    http: 200
+    code: 20002
+    has_token: false
+    data_is_null: true
+
+- name: phone_not_exist
+  title: 手机号未注册，登录被拒
+  request:
+    phone: "19999999999"
+    password: "Test@123456"
+    frond: true
+  expect:
+    http: 200
+    code: 20001
+    has_token: false
+    data_is_null: true
+
+- name: wrong_code
+  title: 验证码通道输入错误验证码，登录被拒
+  # 带了 code 头就会走验证码通道：后端按 phone 反查邮箱，再比 Redis 里的验证码。
+  # 传的是故意写错的 111111，而万能验证码是 000000，所以必然失败。
+  request:
+    phone: "19900000001"
+    password: "Test@123456"
+    code: "111111"
+    frond: true
+  expect:
+    http: 200
+    code: 30003
+    has_token: false
+    data_is_null: true
+
+- name: customer_without_frond
+  title: 客户账号不带前台登录标记，被判定权限不足
+  # 后端逻辑：frond 为假且 power 不是 1/2 → 20008。
+  # 这条是防回归用的：曾经前端漏传 frond 头，客户全部登录不上，排查了很久。
+  request:
+    phone: "19900000001"
+    password: "Test@123456"
+    frond: false
+  expect:
+    http: 200
+    code: 20008
+    has_token: false
+    data_is_null: true
