@@ -297,7 +297,7 @@ smoke job：四步只读断言（首页 200 / health UP / 土地分页 / 产品�
 2. IDEA Reload Maven（用户操作，否则本地 jar/JaCoCo 继续被污染卡死）。
 3. CI 首跑与连续绿未证明；巡检首跑未验证（生产迁腾讯云后状态未知）。
 4. ~~E2E=0；`vue/package.json` 4 个测试依赖待迁~~ → **已完成，见第 11 节**（7 条用例，依赖已迁，lock 已重生成）。
-5. 前端单测 0；约 10 个端点无业务级用例（土地/产品 multipart 写盘、验证码发送、找回密码两阶段、后台改订单状态、Excel 导出、订阅/群发、alipay return/notify）。
+5. 前端单测 0；约 9 个端点无业务级用例（土地/产品 multipart 写盘、验证码发送、找回密码两阶段、后台改订单状态、Excel 导出、订阅/群发）。~~alipay notify~~ 已于 2026-11-17 覆盖，见 11.6；`/alipay/return` 仍缺口（依赖真实沙箱查询，要联网打支付宝）。
 6. JaCoCo check 阈值延后（基线收敛后再设）；Allure gh-pages 历史趋势发布未恢复，README.en 三徽章失效。
 7. 性能/压测、Prometheus+Grafana+Alertmanager 未做。
 8. 文档漂移：docs/wiki 01/08 仍写"无后端单测/E2E 存在/Gitee/-DskipTests"；本文件第 8 节数字过时（以第 10 节为准）。
@@ -369,7 +369,10 @@ E2E 造数时想按手机号定位刚注册的账号，结果每次捞回全表 
 - **服务器侧核对（2026-11-17 19:10，登机实测）**：旧 IP `8.137.114.176` 已完全不通（curl 000），而 `.env` 的 `ALIPAY_NOTIFY_URL` / `ALIPAY_RETURN_URL` / `CORS_ALLOWED_ORIGINS` 仍指向它——**支付回调与支付后跳转全打在死地址上**。已备份 `.env.bak.202611171911` 后改到 `43.136.135.75` 并重建后端（health 6s 就绪）。仓库侧同步 `nginx.conf` 的 `server_name`、`application.yml` 的支付宝默认值、wiki/08 与本文档 §6（`72a31fd`，已部署，服务器容器与 nginx 配置均核验为新值）。
   另确认：容器内 `CODE_MASTER_ENABLED=false`（生产没开万能验证码），`ALIPAY_APP_ID=9021000123611619` 为沙箱应用。
 - **支付全链路已实测通过（2026-11-17 19:36，用户手动沙箱支付）**：`POST /api/alipay/pay` 金额服务端校验 `server=45.0 / client=45.00` → 19:36:32 回调落到 `http://43.136.135.75/api/alipay/notify`，`trade_status=TRADE_SUCCESS`、**验签结果 true** → 订单 `id=74` 由 `status=0` 变 `1`、`pay_time=19:36:32`。这条同时验证了三件事：回调地址修复生效、验签逻辑正确、金额重算在真实链路成立。
-  仍未覆盖的是**自动化**：`test_pay.py` 只测本地签名不碰回调，`/alipay/notify` 没有用例（见 10.5 第 5 条）。
+  ~~仍未覆盖的是自动化~~ → **2026-11-17 已补上**：`tests/test_alipay_notify.py` 3 条（验签通过→改单、重复投递幂等、签名后篡改被拒、非 TRADE_SUCCESS 忽略），接口层 111 → **114（108 passed + 6 xfailed）**。
+  实现要点：测试侧用 `common/alipay_signer.py` 自签 RSA2 报文——待签串必须与 Java `AlipaySignature.getSignContent` 逐条对齐（key 升序、剔除 `sign`/`sign_type` 与空值），差一条就是永久 failure 且日志只说"验签失败"。
+  密钥配对是前提：CI 里私钥/公钥同源；本地 `.env` 是「应用私钥 + 支付宝平台公钥」，不是一对，所以用例自带 `signing_pair_usable()` 自检——不配对本地 skip，**CI 缺密钥则直接 fail**（静默跳过等于这条链路没覆盖）。
+  验这个过程时踩到两个坑：① `spring-boot:run` 下用 `export` 传 ALIPAY_* 没生效，改成命令行参数 `--alipay.publicKey=` 才验过（这也解释了为什么要在独立端口起第二实例验证）；② 篡改用例一开始把 `total_amount` 改成"0.01"，而默认值本来就是 0.01，等于没篡改、用例假通过——已加防呆断言。
 
 ### 11.7 CI 首跑排障：4 轮才绿（面试可讲的完整链路）
 

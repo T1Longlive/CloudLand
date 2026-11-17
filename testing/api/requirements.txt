@@ -5,3 +5,4 @@ PyYAML>=6.0            # 数据驱动：data/**/*.yaml
 allure-pytest>=2.13    # 报告与步骤附件（可选，缺失时 http_client 会自动降级）
 pytest-cov>=5.0        # 框架自身代码覆盖率
 redis>=4.5,<6          # 支付交易映射 TTL 断言与清理；6.x 默认 RESP3 与本地 Redis 不兼容，故锁 <6 且 protocol=2
+cryptography>=41      # notify 用例自签 RSA2 回调报文（SHA256withRSA + 公钥自检）

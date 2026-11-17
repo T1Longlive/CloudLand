@@ -21,6 +21,10 @@ class Settings:
     redis_port: int = int(os.environ.get("TEST_REDIS_PORT", "6379"))
     redis_password: str = os.environ.get("TEST_REDIS_PASSWORD", "123456")
     redis_db: int = int(os.environ.get("TEST_REDIS_DB", "0"))
+    # 支付宝密钥：notify 用例要用私钥自签回调报文，详见 common/alipay_signer.py
+    # CI 由 ci.yml 现场生成一对；本地 .env 是真实沙箱凭据（两把不一定配对）
+    alipay_private_key: str = os.environ.get("ALIPAY_PRIVATE_KEY", "")
+    alipay_public_key: str = os.environ.get("ALIPAY_PUBLIC_KEY", "")
 
 
 settings = Settings()

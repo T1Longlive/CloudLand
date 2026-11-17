@@ -37,7 +37,8 @@ testing/
 │   │   ├── http_client.py           #   Session / token / 日志 / Allure 报文
 │   │   ├── assertions.py            #   双层断言：HTTP 状态码 + 业务码
 │   │   ├── data_loader.py           #   YAML 加载
-│   │   └── data_factory.py          #   造不撞车的测试数据
+│   │   ├── data_factory.py          #   造不撞车的测试数据
+│   │   └── alipay_signer.py         #   RSA2 自签回调报文（含"密钥是否配对"自检）
 │   ├── services/                    # 业务层（一个 Controller 一个类）
 │   │   ├── auth_service.py          #   登录、注册、按角色登录
 │   │   ├── authz_service.py         #   鉴权边界探测（不碰业务）
@@ -60,6 +61,7 @@ testing/
 │       ├── test_order.py            #   订单归属 + 下单/删单真实回滚
 │       ├── test_trolley.py          #   购物车增查删 + 越权删
 │       ├── test_pay.py              #   支付金额防篡改/归属/交易映射 TTL
+│       ├── test_alipay_notify.py    #   支付宝回调：验签/幂等/篡改/状态门槛
 │       └── test_msg.py              #   留言限流/搜索
 └── e2e/                             # 端到端测试（Playwright，独立 node 工程）
     ├── playwright.config.js         #   清代理、webkit、失败留 trace
@@ -102,9 +104,9 @@ src/test/java/                       # 单元测试（JUnit 5）
 | 层 | 用例数 | 结果 | 耗时 | 依赖 |
 |---|---|---|---|---|
 | 单元（JUnit 5） | 83 | 全绿 | ~1s | 无外部依赖；JaCoCo 行覆盖基线 25.3% |
-| 接口（pytest） | 111（105 passed + 6 xfailed） | 全绿 | ~6s | MySQL + Redis + 后端 |
+| 接口（pytest） | 114（108 passed + 6 xfailed） | 全绿 | ~6s | MySQL + Redis + 后端 |
 | 端到端（Playwright / WebKit） | 7 | 连续 3 轮全绿 | ~15s | 后端 + MySQL + Redis + 前端 |
-| 支付回调（人工） | — | 2026-11-17 生产沙箱实测：回调到达 43.136.135.75 → 验签 true → 订单 status 0→1、pay_time 落库 | — | **无自动化用例** |
+| 支付回调（自动化） | 3 | 验签通过→改单、重复投递幂等、篡改被拒、非成功状态忽略 | ~1s | 需一对配对密钥（CI 现场生成） |
 | 稳定性 | — | 三轮结果一致、临时数据零残留 | — | — |
 | 门禁有效性 | — | 故意让一条单测失败 → `BUILD FAILURE` | — | 已实测 |
 
@@ -147,6 +149,21 @@ mysql -h127.0.0.1 -uroot -p123456 cloudland < data/seed/seed_test_accounts.sql
 ./.venv/Scripts/python.exe -m pytest -m "smoke or p0"            # CI 里 PR 跑的集合，77 条
 ./.venv/Scripts/python.exe -m pytest --alluredir=allure-results  # 带报告
 ./.venv/Scripts/python.exe -m pytest --cov=common --cov=services --cov-report=term-missing
+```
+```bash
+# 回调用例（tests/test_alipay_notify.py）需要一对**配对**的支付宝密钥：
+#   CI：ci.yml 现场生成一对，天然配对；
+#   本地 .env：应用私钥 + 支付宝平台公钥，不是一对 → 这三条会 skip（不是失败）。
+# 本地想真跑，用命令行参数另起一个实例（9091）把这对密钥灌进去：
+#   为什么用命令行参数而不是 export：实测 spring-boot:run 下 export 的
+#   ALIPAY_* 没有生效，参数优先级最高，最省事。
+#
+# openssl genrsa -out priv.pem 2048
+# PRIV=$(openssl pkcs8 -topk8 -inform PEM -in priv.pem -outform DER -nocrypt | base64 -w0)
+# PUB=$(openssl rsa -in priv.pem -pubout -outform DER | base64 -w0)
+# mvn spring-boot:run -Dspring-boot.run.arguments="--server.port=9091 --alipay.privateKey=$PRIV --alipay.publicKey=$PUB"
+# TEST_API_BASE_URL=http://127.0.0.1:9091/api ALIPAY_PRIVATE_KEY=$PRIV ALIPAY_PUBLIC_KEY=$PUB \
+#   ./.venv/Scripts/python.exe -m pytest tests/test_alipay_notify.py
 ```
 
 ```bash
