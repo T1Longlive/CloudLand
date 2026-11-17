@@ -106,6 +106,39 @@ jobs:
   # ====================================================================
   # 2. 接口测试：真实 MySQL + Redis + 真实后端进程
   # ====================================================================
+  # ====================================================================
+  # 2. 前端单测：Vitest + jsdom，只覆盖纯逻辑模块（utils/config）
+  #    为什么单独一个作业：它不需要 MySQL/Redis/后端，几十秒出结果，
+  #    和后端那套重型环境完全解耦 —— 前端自己写坏了，不该让接口作业陪着等。
+  # ====================================================================
+  frontend:
+    name: 前端单测 (Vitest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name != 'schedule' || github.event.schedule == '0 18 * * *'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 Node
+        uses: actions/setup-node@v4
+        with:
+          # vitest 5 的 engines 要求 ^22.12 || ^24 || >=26，
+          # 不要跟着 e2e 作业用 20，那边跑的是 Playwright，不挑版本。
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: vue/package-lock.json
+
+      - name: 安装前端依赖
+        working-directory: vue
+        run: npm ci
+
+      - name: 运行单测（含覆盖率阈值）
+        # 阈值写在 vitest.config.mjs 里：低于 90% 行/函数/语句、80% 分支直接失败。
+        # 口径只统计 src/utils 与 src/config —— 组件由 E2E 覆盖，
+        # 不拿它去稀释分母，否则阈值只是自欺欺人的数字。
+        working-directory: vue
+        run: npm run test:unit:cov
+
   api:
     name: 接口测试 (pytest)
     runs-on: ubuntu-latest
@@ -244,7 +277,14 @@ jobs:
         working-directory: testing/api
         # --junitxml 是给下一步的门禁用的：pytest 的 skip 不改变退出码，
         # 光看 job 绿分不清"跑过了"和"被跳过了"。
-        run: python -m pytest ${{ steps.select.outputs.markers }} --alluredir=allure-results --junitxml=junit.xml
+        # 覆盖率阈值只在**全量**跑时卡：PR 只跑子集，分母不完整，
+        # 拿子集的覆盖率去卡 80% 只会得到一条永远红的流水线。
+        run: |
+          COV_ARGS=""
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            COV_ARGS="--cov=common --cov=services --cov-fail-under=80 --cov-report=term-missing"
+          fi
+          python -m pytest ${{ steps.select.outputs.markers }} --alluredir=allure-results --junitxml=junit.xml $COV_ARGS
 
       - name: 校验回调用例真的执行了（防 skip 假绿）
         # PR 只跑 smoke or p0 子集，回调用例有 1 条是 p1 会被 deselect，
@@ -504,15 +544,17 @@ jobs:
   gate:
     name: 质量门禁（汇总）
     runs-on: ubuntu-latest
-    needs: [unit, api, e2e]
+    needs: [unit, frontend, api, e2e]
     if: always() && (github.event_name != 'schedule' || github.event.schedule == '0 18 * * *')
     steps:
       - name: 判定
         run: |
-          echo "unit: ${{ needs.unit.result }}"
-          echo "api : ${{ needs.api.result }}"
-          echo "e2e : ${{ needs.e2e.result }}"
+          echo "unit    : ${{ needs.unit.result }}"
+          echo "frontend: ${{ needs.frontend.result }}"
+          echo "api     : ${{ needs.api.result }}"
+          echo "e2e     : ${{ needs.e2e.result }}"
           if [ "${{ needs.unit.result }}" != "success" ] \
+             || [ "${{ needs.frontend.result }}" != "success" ] \
              || [ "${{ needs.api.result }}" != "success" ] \
              || [ "${{ needs.e2e.result }}" != "success" ]; then
             echo "::error::门禁未通过，禁止合并 / 禁止部署"

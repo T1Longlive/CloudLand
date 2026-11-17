@@ -83,6 +83,10 @@ testing/
         ├── register.spec.js         #   前端必填拦截（不发请求）+ 真实注册后能登录
         └── order.spec.js            #   加购 → 结算 → 订单列表可见
 
+vue/src/utils/auth.spec.js          # 前端单测：token 生命周期 / 登录态缓存 / 请求头
+vue/src/config/app.spec.js          # 前端单测：baseUrl 归一化 / 资源前缀
+vue/vitest.config.mjs               # 覆盖率阈值（只统计 utils 与 config）
+
 src/test/java/                       # 单元测试（JUnit 5）
 ├── com/cloudland/controller/result/
 │   ├── CodeTest.java                #   码表白名单契约（含反射扫描）
@@ -107,6 +111,7 @@ src/test/java/                       # 单元测试（JUnit 5）
 | 单元（JUnit 5） | 83 | 全绿 | ~1s | 无外部依赖；JaCoCo 行覆盖基线 25.3% |
 | 接口（pytest） | 116（105 passed + 3 skipped + 8 xfailed） | 全绿 | ~10s | MySQL + Redis + 后端 |
 | 端到端（Playwright / WebKit） | 7 | 连续 3 轮全绿 | ~15s | 后端 + MySQL + Redis + 前端 |
+| 前端单测（Vitest / jsdom） | 21 | 全绿；utils+config 行覆盖 100%，阈值 90/80 | ~1s | 无外部依赖（需 Node ≥ 22） |
 | 支付回调（自动化） | 3 | 验签通过→改单、重复投递幂等、篡改被拒、非成功状态忽略 | ~1s | 需一对配对密钥（CI 现场生成） |
 | 稳定性 | — | 三轮结果一致、临时数据零残留 | — | — |
 | 门禁有效性 | — | 故意让一条单测失败 → `BUILD FAILURE` | — | 已实测 |
@@ -174,6 +179,14 @@ mysql -h127.0.0.1 -uroot -p123456 cloudland < data/seed/seed_test_accounts.sql
 mvn test                                      # 83 条
 mvn test -Dtest=JwtUtilsTest                  # 只跑一个类
 mvn test -Dtest=CodeTest#whitelistCoversAllConstants   # 只跑一个方法
+```
+
+```bash
+# 前端单测（在 vue 目录，Node ≥ 22：vitest 5 的 engines 要求）
+cd vue
+npm run test:unit          # 全量 21 条
+npm run test:unit:watch    # 改代码时挂着重跑
+npm run test:unit:cov      # 带覆盖率（CI 跑的就是这条，低于阈值直接失败）
 ```
 
 ```bash
@@ -253,7 +266,7 @@ npx playwright show-report                    # 上次的 HTML 报告
 | 阶段 | 内容 | 状态 |
 |---|---|---|
 | 1 | 接口框架：三层分离 + 双层断言 + 数据驱动 + Allure | ✅ 114 条（含契约/支付/购物车/订单写路径/支付宝回调） |
-| 2 | 单元测试：JUnit 5 打纯函数、JWT、码表、订单不变量 | ✅ 83 条 + JaCoCo 度量，门禁已实测有效 |
+| 2 | 单元测试：JUnit 5（后端）+ Vitest（前端纯逻辑） | ✅ 83 + 21 条；JaCoCo 度量 + Vitest 覆盖率阈值（90% 行 / 80% 分支） |
 | 3 | E2E：Playwright 覆盖登录、注册、下单 | ✅ 7 条 / 连续 3 轮全绿（含三级地址联动、自动造数清数） |
 | 4 | 数据治理：幂等 seed、造数工厂、自动清理 | ✅ 工厂 + 幂等 seed + API 清理 + Redis 键清理 + E2E 临时账号/产品自动删，三轮零残留 |
 | 5 | 质量门禁：CI 分层调度 + 部署门禁 | ✅ ci.yml 五层（unit/api/e2e/gate/smoke）+ 调度 + workflow_run 闭环（仅 push 触发部署） |
