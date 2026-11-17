@@ -104,6 +104,7 @@ src/test/java/                       # 单元测试（JUnit 5）
 | 单元（JUnit 5） | 83 | 全绿 | ~1s | 无外部依赖；JaCoCo 行覆盖基线 25.3% |
 | 接口（pytest） | 111（105 passed + 6 xfailed） | 全绿 | ~6s | MySQL + Redis + 后端 |
 | 端到端（Playwright / WebKit） | 7 | 连续 3 轮全绿 | ~15s | 后端 + MySQL + Redis + 前端 |
+| 支付回调（人工） | — | 2026-11-17 生产沙箱实测：回调到达 43.136.135.75 → 验签 true → 订单 status 0→1、pay_time 落库 | — | **无自动化用例** |
 | 稳定性 | — | 三轮结果一致、临时数据零残留 | — | — |
 | 门禁有效性 | — | 故意让一条单测失败 → `BUILD FAILURE` | — | 已实测 |
 

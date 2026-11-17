@@ -366,7 +366,10 @@ E2E 造数时想按手机号定位刚注册的账号，结果每次捞回全表 
 - `ci.yml` 新增 **e2e job**（MySQL/Redis service + jar + `npm ci` ×2 + `playwright install --with-deps webkit`，前端由 Playwright `webServer` 自己拉起），`gate` 纳入 e2e 结论。触发矩阵同 10.3：PR / push / 夜间跑，6 小时巡检跳过。
 - ~~未验证项：e2e job 尚未在真实 runner 跑过~~ → **2026-11-17 已在真实 runner 跑通**，见 11.7。
 - **顺手修掉的生产配置缺陷**：`vue/.env.production` 原为 `http://8.137.114.176/api`（旧服务器绝对地址），构建时焊进 bundle。服务器迁腾讯云后线上前端每个接口都打旧 IP，而 smoke 巡检直连 `SERVER_HOST`，所以**巡检绿、用户侧全挂**。改相对路径 `/api`，由 nginx 同源反代命中 backend，CORS 预检一并消失。验证：生产模式构建后 grep 产物，旧 IP 出现 0 次、基址为 `"/api"`。
-- **仍未处理**（需要服务器侧确认）：`src/main/resources/application.yml` 的 `ALIPAY_NOTIFY_URL` / `ALIPAY_RETURN_URL` 默认值仍是旧 IP；`nginx.conf` 的 `server_name` 也是旧 IP（单 server 块下不影响服务，但迁移语义不清）。两处都靠服务器 `.env` 覆盖，本地无法验证。
+- **服务器侧核对（2026-11-17 19:10，登机实测）**：旧 IP `8.137.114.176` 已完全不通（curl 000），而 `.env` 的 `ALIPAY_NOTIFY_URL` / `ALIPAY_RETURN_URL` / `CORS_ALLOWED_ORIGINS` 仍指向它——**支付回调与支付后跳转全打在死地址上**。已备份 `.env.bak.202611171911` 后改到 `43.136.135.75` 并重建后端（health 6s 就绪）。仓库侧同步 `nginx.conf` 的 `server_name`、`application.yml` 的支付宝默认值、wiki/08 与本文档 §6（`72a31fd`，已部署，服务器容器与 nginx 配置均核验为新值）。
+  另确认：容器内 `CODE_MASTER_ENABLED=false`（生产没开万能验证码），`ALIPAY_APP_ID=9021000123611619` 为沙箱应用。
+- **支付全链路已实测通过（2026-11-17 19:36，用户手动沙箱支付）**：`POST /api/alipay/pay` 金额服务端校验 `server=45.0 / client=45.00` → 19:36:32 回调落到 `http://43.136.135.75/api/alipay/notify`，`trade_status=TRADE_SUCCESS`、**验签结果 true** → 订单 `id=74` 由 `status=0` 变 `1`、`pay_time=19:36:32`。这条同时验证了三件事：回调地址修复生效、验签逻辑正确、金额重算在真实链路成立。
+  仍未覆盖的是**自动化**：`test_pay.py` 只测本地签名不碰回调，`/alipay/notify` 没有用例（见 10.5 第 5 条）。
 
 ### 11.7 CI 首跑排障：4 轮才绿（面试可讲的完整链路）
 
