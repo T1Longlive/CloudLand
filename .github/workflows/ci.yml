@@ -461,6 +461,15 @@ jobs:
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
+          # 同时把关键行打成注解：step summary 只有登录网页才看得到，
+          # 注解能通过 check-runs API 读到。没有这条通道，排障就只能靠人肉贴日志。
+          # GitHub 每个 step 最多 10 条 error 注解，所以只挑最有信息量的行。
+          grep -a -E "^\s+[0-9]+\) |Error:|Expected|Received|TimeoutError|waiting for|net::ERR|ECONNREFUSED" \
+            /tmp/e2e.log 2>/dev/null | head -10 | while IFS= read -r line; do
+            echo "::error::$(printf '%s' "$line" | tr -d '\r' | cut -c1-380)"
+          done
+          exit 0
+
       - name: 后端日志（失败时）
         if: failure()
         run: tail -200 /tmp/backend.log
