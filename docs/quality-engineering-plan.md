@@ -1,7 +1,10 @@
 # 质量效能路线图与进度跟踪
 
 > 用途：跨会话接手文档。任何新对话读本文件即可了解方向决策、整体计划、当前进度与下一步任务，无需重新分析。
-> 建立:2026-09-02 · 最近更新:2026-11-12(W8 质量门禁闭环:CI 红挡部署/分层调度/覆盖率/修复 webkit 假 flaky,详见第 8 节)
+> 建立:2026-09-02 · 最近更新:2026-11-17
+> ⚠️ 2026-11-16：全部测试代码已清空重建（快照 tag `v1-legacy-test-suite`）。本文档第 3-9 节为历史记录，新体系见 `testing/README.md`。
+> ⚠️ 2026-11-17：**当前进度以第 10、11 节为准**（第 8 节的用例数/调度描述已过时）。
+> 11 节 = 同日 Stage 3（E2E）交付记录；10.1/10.5 的 E2E 行已被 11 节覆盖。
 
 ## 1. 背景与方向决策
 
@@ -248,4 +251,123 @@ testing/api/
 
 - **2026-11-12**：W8 质量门禁闭环收口。提交 testing/api 三层重构、串联 CI→部署门禁、marker 分层调度 + pytest-cov（98%）、修复 webkit 代理导致的「CORS 假 flaky」（62/62 全绿）、smoke 防死锁；同步修正文档漂移与 .gitignore。
 
+## 10. 2026-11-17 进度与接手指南（当前最新）
 
+### 10.1 实测基线（本地真实环境）
+
+| 层 | 数量 | 结果 |
+|---|---|---|
+| 单元（JUnit 5） | 83 | 全绿 ~1s；JaCoCo 行覆盖基线 25.3%（**只度量、无 check 阈值**） |
+| 接口（pytest） | 110（105 passed + 5 xfailed） | 连续 3 轮全绿 ~5.5s；零残留（134 账号 0、alipay:trade 键 0、trolley/order 计数三轮不变） |
+|  marker 子集 | smoke 47 / smoke or p0 77 | PR 跑后者 |
+| E2E | 0 | 旧套件已删（tag `v1-legacy-test-suite`），Stage 3 未开始 |
+
+### 10.2 今日完成
+
+- **单测 +40**：`Order2ServiceImplTest`(24，Mockito 守金额重算/锁地扣库存/删单回滚/归属/支付映射幂等)、`StoragePropertiesTest`(7)、`FileUtilTest`(9，@TempDir 隔离)。
+- **接口 +23**：`test_contract.py`(6，离线码表契约，恢复重建时丢失的资产)、token 续期通道 3、用户查重/改绑 4、`test_trolley.py` 3、订单写路径真实回滚 3、`test_pay.py` 4（金额防篡改/Redis TTL/归属/已支付/不存在订单）。
+- **修掉的测试自身缺陷**：JWT 篡改用例改签名尾字符（base64url 尾字符低位不参与解码→概率性假绿/假红）改中段；`deleteById` 传实体重载的 verify 参数；**Jackson 对 Lombok pId/uId 的请求与响应键均为小写 pid/uid**；`login_by_token` 补 `frond` 头（客户 power=0 不带被拦 20008）。
+- **JaCoCo 0.8.11** 接入 pom（prepare-agent + report）；ci.yml unit job 上传报告。
+- **CI 分层调度落地**（见 10.3）；**build-deploy 门禁加 `workflow_run.event == 'push'`**——否则夜间/巡检 cron 的 success 结论会触发定时部署（加 cron 引入的连锁风险，已堵）。
+- ci.yml api job 用 openssl 生成**一次性 RSA 密钥**注入 ALIPAY_*（pay 用例只本地签名，真实沙箱密钥不进 CI）。
+- `testing/README.md` 基线同步；`.idea` 旧 iml 与 4 个过期库备份至 `.idea-stale-backup-20261117/`（未跟踪，确认 IDEA 正常后可删）。
+
+### 10.3 CI 触发矩阵（ci.yml 现状）
+
+| 触发 | unit | api | gate | smoke 巡检 | 部署 |
+|---|---|---|---|---|---|
+| PR | ✅ | 子集 77 | ✅ | ✗ | ✗ |
+| push main/develop | ✅ | 全量 110 | ✅ | ✅ | 仅 main 且 CI 绿 |
+| 夜间 cron UTC18（北京 02:00） | ✅ | 全量 110 | ✅ | ✅ | ✗ |
+| 每 6 小时 cron | ✗ | ✗ | ✗ | ✅ | ✗ |
+| workflow_dispatch | ✅ | 全量 | ✅ | ✅ | 人工兜底 |
+
+smoke job：四步只读断言（首页 200 / health UP / 土地分页 / 产品分页），`continue-on-error: true` 防死锁，目标 `secrets.SERVER_HOST`（服务器已迁腾讯云，不硬编码旧 IP 8.137.114.176）。
+
+### 10.4 环境事实（接手必读，详见记忆 cloudland-local-env-pitfalls）
+
+- **IDEA 从未成功导入 Maven**：自动构建把整仓非 Java 文件复制进 `target/classes` 形成递归嵌套 → jar 打包/JaCoCo 卡死或报重复类。**根治需用户在 IDEA 里 Reload All Maven Projects/重启**；临时解法 `rm -rf target/classes` 或 `mvn spring-boot:run`（不打 jar）。
+- 当前 9090 后端由 agent 以 `spring-boot:run` 启动（**非 jar、非用户长期运行方式**）；MySQL/Redis 为 Windows 服务常驻。
+- mysql CLI 在 `/d/Software/MySQL 9.0/bin/mysql`，默认 gbk：导 seed 必须 `--default-character-set=utf8mb4`。
+- mvn 用 wrapper dists 的 mvn.cmd（`-o` 离线可用）；`env -u VAR mvn.cmd` 静默不执行，须同条命令内 `unset`；宿主注入 SERVER__PORT/HTTP_PROXY 需排除。
+
+### 10.5 未完成（按优先级）
+
+1. **67 个文件未 commit；本地领先 origin/main 1 个 commit（11-16 那次也未推）** → 远端 CI 跑的仍是旧套件，110+83/调度/JaCoCo 均未在流水线证明。push 触发真实 CI+生产部署，**必须用户确认**。
+2. IDEA Reload Maven（用户操作，否则本地 jar/JaCoCo 继续被污染卡死）。
+3. CI 首跑与连续绿未证明；巡检首跑未验证（生产迁腾讯云后状态未知）。
+4. ~~E2E=0；`vue/package.json` 4 个测试依赖待迁~~ → **已完成，见第 11 节**（7 条用例，依赖已迁，lock 已重生成）。
+5. 前端单测 0；约 10 个端点无业务级用例（土地/产品 multipart 写盘、验证码发送、找回密码两阶段、后台改订单状态、Excel 导出、订阅/群发、alipay return/notify）。
+6. JaCoCo check 阈值延后（基线收敛后再设）；Allure gh-pages 历史趋势发布未恢复，README.en 三徽章失效。
+7. 性能/压测、Prometheus+Grafana+Alertmanager 未做。
+8. 文档漂移：docs/wiki 01/08 仍写"无后端单测/E2E 存在/Gitee/-DskipTests"；本文件第 8 节数字过时（以第 10 节为准）。
+9. 5 个 xfail 记录的**后端缺陷本体未修**（业务代码未动）：/user/page 泄露密码哈希、land/product 不存在 id 500、msg phone 过滤失效、注册缺 detailedAddress 500。
+
+### 10.6 下一步与跑法
+
+建议顺序：commit（用户确认）→ push（用户确认）→ IDEA reload → 观察 CI 首跑（现在多一个 e2e job）/巡检 → JaCoCo 阈值 → 前端单测。
+
+```bash
+# 接口（需 9090 + MySQL + Redis + seed 在线）
+cd testing/api && ./.venv/Scripts/python.exe -m pytest          # 110
+./.venv/Scripts/python.exe -m pytest -m "smoke or p0"           # 77
+# 单元
+mvn test                                                        # 83
+# seed 重置（幂等）
+"/d/Software/MySQL 9.0/bin/mysql" --default-character-set=utf8mb4 -h127.0.0.1 -uroot -p123456 cloudland < testing/api/data/seed/seed_test_accounts.sql
+```
+
+## 11. 2026-11-17 Stage 3：E2E 交付（当前最新）
+
+### 11.1 结果
+
+`testing/e2e/` 独立 node 工程落地，**7 条用例 / 3 条链路 / 连续 3 轮全绿（~15s）**，三轮跑完库内零残留（131/132 段账号 0、`E2E产品*` 0）。
+
+| spec | 条数 | 覆盖 |
+|---|---|---|
+| `login.spec.js` | 4 | 客户登录成功 / 密码错误提示 / 登录后进个人中心（`frond` 头回归点）/ 未登录被路由守卫弹回 |
+| `register.spec.js` | 2 | 必填为空被前端拦截且**请求未发出** / 完整填写（含三级地址联动）注册成功且新账号能登录 |
+| `order.spec.js` | 1 | 加购物车 → 确认弹窗 → 购物车勾选 → 结算 → 订单列表出现且为「未支付」 |
+
+### 11.2 结构
+
+```
+testing/e2e/
+├── playwright.config.js   # 清代理 / webkit / retries=0 / 失败留 trace
+├── fixtures/              # env(环境唯一入口) accounts(seed 镜像) backend(造数清数) index(夹具)
+├── pages/                 # home / login-form / register-form / product / trolley / order
+└── tests/                 # login / register / order
+```
+
+四层同接口层一个思路：`tests → pages → fixtures → 被测系统`，用例层只写业务语言。
+
+### 11.3 四个关键决策（面试可讲）
+
+1. **选择器分层，禁止结构选择器**：文字/placeholder/role 优先，`data-testid`/id 次之，class 链与 nth-child 禁用。本次只给 UI 加了 **2 个** `data-testid`（登录/注册容器）——因为一个组件里塞了两套表单，`getByPlaceholder('请输入你的验证码')` 会同时命中两个，必须显式圈定范围。
+2. **数据自造自清**：下单用例用「用例专属临时账号（131 段）+ 用例专属上架产品」，跑完删账号（order2/trolley 对 user 是 ON DELETE CASCADE，删账号即清业务数据）再删产品。不拿 seed 客户下单——它一有历史订单，"列表里有这一行"就不再是有效断言。
+3. **等条件不等时间**：`MyTrolley.addOrder()` 有两段写死的 `setTimeout(2000)`，点「去结算」到订单页可用硬成本 4 秒起。用例用 `waitForURL` + 行可见等状态，没有一处 `sleep`。
+4. **`retries = 0`**：flake 必须暴露。重试只会把问题变成"偶尔红一下"的噪音。
+
+### 11.4 写 E2E 撞出的三个坑（都写进了 README）
+
+- **el-popper 会搬家**：级联面板展开时节点被移到 `document.body`，`[data-testid=register-form] .el-cascader__dropdown` 打开后变 0 个元素。改用应用自己声明的 `popper-class`（`region-cascader-popper`）全页定位。
+- **地址正则不容空格**：前端 `/^\S{5,}$/`，详细地址带空格会被判成"最低填五个字"。
+- **提示浮层只活 1 秒**（`duration: 1000`）：靠它断言注册结果既脆又说不清原因。改成 `waitForResponse` 抓 `/user/register` 的 `code`。
+
+### 11.5 顺带发现的第 6 个真实缺陷
+
+E2E 造数时想按手机号定位刚注册的账号，结果每次捞回全表 → **`POST /user/page` 的 `phone` 条件被静默忽略**（`UserMapper.selectByCondition` 只拼了 status/id/power/username 四个 `<if>`，与 `msg/page` 同类）。已固化为 `test_user.py::test_page_users_filter_by_phone_must_narrow_results`（`xfail(strict=True)`），接口层基线由 110 → **111（105 passed + 6 xfailed）**。
+
+### 11.6 依赖与流水线
+
+- `vue/package.json` 移除 4 个测试专用依赖（`@playwright/test`、`@types/node`、`ioredis`、`mysql2`），`npm install --package-lock-only` 重生成 lock（**-433 行**），`npm ci --dry-run` 验证一致——这次没留"只删 json 弄坏 npm ci"的坑。
+- `ci.yml` 新增 **e2e job**（MySQL/Redis service + jar + `npm ci` ×2 + `playwright install --with-deps webkit`，前端由 Playwright `webServer` 自己拉起），`gate` 纳入 e2e 结论。触发矩阵同 10.3：PR / push / 夜间跑，6 小时巡检跳过。
+- **未验证项**：本地无 GitHub 网络权限，e2e job 尚未在真实 runner 跑过；`npm run build` 本地被沙箱的文件删除防护拦下（不是代码问题），生产构建是否通过要等 CI。
+
+### 11.7 下一步
+
+1. commit（用户确认）→ push（用户确认）→ 观察 CI 首跑（unit/api/e2e/gate 四绿）→ IDEA Reload Maven。
+2. JaCoCo check 阈值（基线 25.3% 收敛后按包设）。
+3. 前端单测（当前 0）：`utils/auth.js` 登录态缓存、`config/app.js` URL 归一化都是纯函数。
+4. E2E 扩容：后台（登录 → 土地/产品/订单管理）、删单/支付跳转分支。
+5. 后端 6 个 xfail 缺陷本体，业务代码仍未动。

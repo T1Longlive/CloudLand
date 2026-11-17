@@ -41,6 +41,13 @@ config/application-local.yml
 ### Python 测试产物（testing/api） ###
 __pycache__/
 .pytest_cache/
+testing/api/.venv/
 testing/api/allure-results/
 testing/api/.coverage
 testing/api/coverage.xml
+
+### Node 依赖与 Playwright 产物（testing/e2e） ###
+node_modules/
+testing/e2e/test-results/
+testing/e2e/playwright-report/
+testing/e2e/blob-report/
