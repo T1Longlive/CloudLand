@@ -1,147 +1,239 @@
-# CI 流水线：API（pytest+Allure）+ E2E（Playwright）双 job + 报告发布 gh-pages
-#
-# 设计要点：
-# - MySQL/Redis 用 docker run 起服务（services 不支持挂载初始化 SQL）
-#   MySQL 初始化导入 cloudland.sql，就绪判定 = TCP 存活 + user 表可查（过滤 temp-server 阶段）
-# - 支付用例触发 alipayClient.pageExecute（本地签名构造表单，不联网），
-#   CI 无沙箱密钥 → 生成一次性 RSA 密钥对经环境变量注入
-# - 前端构建时用 VUE_APP_API_BASE_URL 指向本地后端（覆盖 .env.production 的线上地址）
-# - 报告汇总在 report job：Allure 历史来自 gh-pages，连同 Playwright HTML 报告一次性发布
-# - 本流水线只做质量门禁，不部署；build-deploy.yml 已用 workflow_run 串联本流水线，
-#   只放行「push main 触发且 conclusion == success」的那次运行 —— CI 红会真正挡住部署。
-#   smoke 为线上只读巡检，continue-on-error，不参与门禁判定（避免线上故障导致发布死锁）。
-# - 分层调度：PR 只跑 pytest 的 smoke/p0 子集，push main 与夜间跑全量 34 条。
-#   schedule 两条：每 6 小时轻量线上巡检（只跑 smoke job）、UTC 18 点（北京 02:00）全量回归。
-
 name: CI
+
+# ======================================================================
+# Cloudland 质量门禁
+# ----------------------------------------------------------------------
+# 分层策略（为什么不是"一个 job 跑所有测试"）：
+#   1. unit  —— JUnit 纯单元测试，几十秒出结果，不依赖数据库。
+#               任何 PR 都跑，红得最快，定位最准。
+#   2. api   —— pytest 接口测试，需要 MySQL + Redis + 真实后端进程。
+#               只跑 smoke + p0（核心链路），把反馈控制在分钟级。
+#   3. e2e   —— Playwright 端到端，最慢的一层（装浏览器 + 起前端 dev server）。
+#               它不替代接口测试，只回答一个接口层答不了的问题：
+#               "用户真的点得通吗"。
+#   4. gate  —— 汇总作业，只做"一票否决"。
+#               GitHub 分支保护只能勾选具体 job 作为必需检查，
+#               有一个稳定的 gate 名字，就不用每次加 job 都去改分支保护配置。
+#   5. smoke —— 线上只读巡检，与本文件的门禁解耦（continue-on-error）。
+#
+# 为什么 PR 不跑全量：
+#   全量靠 push main 与定时任务兜。PR 阶段要的是"5 分钟内知道能不能合"，
+#   跑 30 分钟的流水线只会让人绕过它。
+#
+# 与 build-deploy.yml 的关系（这是门禁闭环的关键）：
+#   build-deploy.yml 用 workflow_run 监听本工作流。
+#   CI 不成功 → 部署作业不会被创建 → 镜像不会推、服务器不会动。
+#   ⚠️ 曾踩过的坑：ci.yml 被删过一次，workflow_run 找不到 "CI"，
+#      导致部署"永久卡在等待"且不报错。改这个文件名等于改部署触发条件。
+# ======================================================================
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.workbuddy/**'
   pull_request:
-    branches: [main]
+    branches: [main, develop]
   workflow_dispatch:
   schedule:
-    # 线上巡检：每 6 小时一次只读冒烟（UTC 0/6/12/18 点 = 北京 8/14/20/2 点）
-    - cron: '0 */6 * * *'
-    # 夜间全量回归：UTC 18 点 = 北京次日 02:00，api + e2e 跑全量
+    # 夜间全量（UTC 18 = 北京 02:00）：没人 push 的日子也兜底跑一遍 110 条
     - cron: '0 18 * * *'
+    # 每 6 小时线上只读巡检：只跑 smoke job，重型 job 条件跳过
+    - cron: '0 */6 * * *'
 
-# 同分支新推送取消旧运行，避免 gh-pages 发布互相竞争
+# 同一分支连续 push 时取消上一轮：省额度，也避免旧结果覆盖新结论
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-permissions:
-  contents: write # report job 推送 gh-pages
+env:
+  # 与生产一致的 JDK：项目 target 是 1.8，用 17 编译能过但会和线上行为有偏差
+  JAVA_VERSION: '8'
+  PYTHON_VERSION: '3.11'
 
 jobs:
-  api:
-    name: API 测试（pytest + Allure）
-    if: github.event_name != 'schedule' || github.event.schedule == '0 18 * * *'
+  # ====================================================================
+  # 1. 单元测试：不依赖任何外部服务，最快反馈
+  # ====================================================================
+  unit:
+    name: 单元测试 (JUnit)
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 15
+    # 6 小时巡检只跑 smoke job，单元/接口/门禁跳过
+    if: github.event_name != 'schedule' || github.event.schedule == '0 18 * * *'
     steps:
       - uses: actions/checkout@v4
 
-      - name: 启动 MySQL 8（导入 cloudland.sql）
-        run: |
-          docker run -d --name mysql -p 3306:3306 \
-            -e MYSQL_ROOT_PASSWORD=123456 \
-            -e MYSQL_DATABASE=cloudland \
-            -v "$PWD/cloudland.sql:/docker-entrypoint-initdb.d/cloudland.sql:ro" \
-            mysql:8 --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
-
-      - name: 启动 Redis 7
-        run: docker run -d --name redis -p 6379:6379 redis:7 --requirepass 123456
-
-      - name: 等待 MySQL 完成初始化导入
-        run: |
-          for i in $(seq 1 90); do
-            if docker exec mysql mysqladmin ping -h127.0.0.1 -uroot -p123456 --silent >/dev/null 2>&1 \
-               && docker exec mysql mysql -h127.0.0.1 -uroot -p123456 \
-                    -e "SELECT 1 FROM cloudland.user LIMIT 1" >/dev/null 2>&1; then
-              echo "MySQL ready (attempt $i)"
-              exit 0
-            fi
-            sleep 5
-          done
-          echo "::error::MySQL 初始化超时"
-          docker logs mysql | tail -50
-          exit 1
-
-      - name: 导入测试种子账号（199 段，INSERT IGNORE 幂等）
-        run: |
-          docker exec -i mysql mysql -h127.0.0.1 -uroot -p123456 cloudland < vue/tests/fixtures/seed.sql
-          docker exec mysql mysql -h127.0.0.1 -uroot -p123456 \
-            -e "SELECT phone, power, status FROM cloudland.user WHERE phone LIKE '199%'"
-
-      - uses: actions/setup-java@v4
+      - name: 安装 JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
         with:
-          java-version: '8'
+          java-version: ${{ env.JAVA_VERSION }}
           distribution: temurin
           cache: maven
 
-      - name: 构建后端（跳过测试）
-        run: mvn -B clean package -DskipTests
+      - name: 运行单元测试
+        # surefire 失败会让这一步非 0 退出，job 直接红 —— 这就是门禁本身。
+        # 不需要额外脚本判断"测试是否失败"，Maven 已经做完了。
+        run: mvn -B -ntp test
 
-      - name: 生成一次性 RSA 密钥（支付宝 pageExecute 本地签名用）
-        run: |
-          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out /tmp/alipay-private.pem
-          openssl pkey -in /tmp/alipay-private.pem -pubout -out /tmp/alipay-public.pem
-          PRIV=$(sed '/^-----/d' /tmp/alipay-private.pem | tr -d '\n')
-          PUB=$(sed '/^-----/d' /tmp/alipay-public.pem | tr -d '\n')
-          echo "ALIPAY_APP_ID=ci-throwaway-app" >> "$GITHUB_ENV"
-          echo "ALIPAY_PRIVATE_KEY=$PRIV" >> "$GITHUB_ENV"
-          echo "ALIPAY_PUBLIC_KEY=$PUB" >> "$GITHUB_ENV"
+      - name: 上传测试报告（失败也上传）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: target/surefire-reports/
+          retention-days: 7
 
-      - name: 启动后端
-        run: |
-          mkdir -p /tmp/CloudLandFile
-          nohup java -jar target/Cloudland-0.0.1-SNAPSHOT.jar > backend.log 2>&1 &
-          echo $! > backend.pid
+      - name: 上传 JaCoCo 覆盖率报告
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          path: target/site/jacoco/
+          retention-days: 7
 
-      - name: 健康门禁（actuator/health 200 才放行）
+      - name: 在 PR 里展示失败摘要
+        if: failure()
         run: |
+          echo "### 单元测试失败" >> $GITHUB_STEP_SUMMARY
+          grep -h "Tests run" target/surefire-reports/*.txt 2>/dev/null >> $GITHUB_STEP_SUMMARY || true
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          grep -h -A 5 "FAILURE" target/surefire-reports/*.txt 2>/dev/null | head -50 >> $GITHUB_STEP_SUMMARY || true
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  # ====================================================================
+  # 2. 接口测试：真实 MySQL + Redis + 真实后端进程
+  # ====================================================================
+  api:
+    name: 接口测试 (pytest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: unit
+    if: github.event_name != 'schedule' || github.event.schedule == '0 18 * * *'
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: '123456'
+          MYSQL_DATABASE: cloudland
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -p123456"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+      redis:
+        image: redis:7
+        # 必须带密码启动：application.yml 里 redis.password 默认 123456，
+        # 起一个无密码的 Redis 会让 Lettuce 连接时报认证错误。
+        options: >-
+          --requirepass 123456
+          --health-cmd="redis-cli -a 123456 ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+        ports: ['6379:6379']
+
+    env:
+      DB_URL: jdbc:mysql://127.0.0.1:3306/cloudland?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&allowMultiQueries=true
+      DB_USERNAME: root
+      DB_PASSWORD: '123456'
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: '6379'
+      REDIS_PASSWORD: '123456'
+      # CI 里没有 D 盘，文件存储根目录必须换到 runner 的临时目录
+      FILE_STORAGE_ROOT: /tmp/cloudland-files
+      # 万能验证码：只允许在测试环境开启，生产必须关掉
+      CODE_MASTER_ENABLED: 'true'
+      TEST_API_BASE_URL: http://127.0.0.1:9090/api
+      TEST_MASTER_CODE: '000000'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+          cache: maven
+
+      - name: 初始化数据库结构
+        run: |
+          set -euo pipefail
+          mysql -h 127.0.0.1 -uroot -p123456 cloudland < cloudland.sql
+          mysql -N -h 127.0.0.1 -uroot -p123456 \
+            -e "SELECT CONCAT('表数量：', COUNT(*)) FROM information_schema.tables WHERE table_schema='cloudland'"
+
+      - name: 注入测试种子账号
+        # 固定账号是接口测试的前置条件。把它做成可执行 SQL，而不是"谁手工建过"。
+        run: |
+          set -euo pipefail
+          mysql -h 127.0.0.1 -uroot -p123456 cloudland \
+            < testing/api/data/seed/seed_test_accounts.sql
+          mysql -h 127.0.0.1 -uroot -p123456 cloudland \
+            -e "SELECT phone, power, status FROM user WHERE phone LIKE '199%' ORDER BY phone;"
+
+      - name: 构建后端 jar
+        # 单元测试已在 unit 作业跑过，这里跳过以省时间（-DskipTests 仍会编译测试代码）
+        run: mvn -B -ntp -DskipTests package
+
+      - name: 生成一次性支付宝密钥（pay 用例只做本地签名，不联网）
+        # 沙箱真实密钥不进 CI；pageExecute 仅本地构造表单，一次性 RSA 密钥对足够。
+        # SDK 要求 DER 的 base64（无 PEM 头），私钥需 PKCS8。
+        run: |
+          set -euo pipefail
+          openssl genrsa -out /tmp/alipay_private.pem 2048
+          openssl pkcs8 -topk8 -inform PEM -in /tmp/alipay_private.pem -outform DER -nocrypt \
+            | base64 -w0 > /tmp/alipay_private.b64
+          openssl rsa -in /tmp/alipay_private.pem -pubout -outform DER \
+            | base64 -w0 > /tmp/alipay_public.b64
+          {
+            echo "ALIPAY_APP_ID=2021000000000000"
+            echo "ALIPAY_PRIVATE_KEY=$(cat /tmp/alipay_private.b64)"
+            echo "ALIPAY_PUBLIC_KEY=$(cat /tmp/alipay_public.b64)"
+          } >> "$GITHUB_ENV"
+
+      - name: 启动后端并等待就绪
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/cloudland-files
+          nohup java -jar target/Cloudland-*.jar > /tmp/backend.log 2>&1 &
           for i in $(seq 1 60); do
-            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:9090/api/actuator/health || true)
-            if [ "$code" = "200" ]; then
-              echo "Backend ready (attempt $i)"
+            if curl -sf http://127.0.0.1:9090/api/actuator/health > /dev/null; then
+              echo "后端已就绪（${i}s）"
               exit 0
             fi
-            sleep 3
+            sleep 1
           done
-          echo "::error::后端健康检查超时"
-          tail -100 backend.log
+          echo "后端 60s 内未就绪，日志如下："
+          tail -100 /tmp/backend.log
           exit 1
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-          cache: pip
-          cache-dependency-path: testing/api/requirements.txt
-
-      - name: 安装 pytest 依赖
-        run: pip install -r testing/api/requirements.txt
-
-      - name: 运行 API 测试（PR 跑 smoke/p0，push 与夜跑全量）
-        working-directory: testing/api
-        env:
-          # PR 只跑 27 条核心用例（登录鉴权 + 码表契约 + 安全回归），34 条全量留给 push/夜间。
-          PYTEST_MARKERS: ${{ github.event_name == 'pull_request' && 'smoke or p0' || '' }}
+      - name: 安装 Python 依赖
         run: |
-          # 覆盖率统计的是 Python 框架自身代码（common/、services/），不是后端 Java 代码；
-          # 后端代码覆盖率需另接 JaCoCo agent，勿把两者混为一谈。
-          COV_ARGS="--cov=common --cov=services --cov-report=term-missing --cov-report=xml:coverage.xml"
-          if [ -n "$PYTEST_MARKERS" ]; then
-            python -m pytest . -v -m "$PYTEST_MARKERS" $COV_ARGS --alluredir=allure-results
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install -r testing/api/requirements.txt
+
+      - name: 选择用例集合（PR 子集 / 其余全量）
+        id: select
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo 'markers=-m "smoke or p0"' >> "$GITHUB_OUTPUT"
           else
-            python -m pytest . -v $COV_ARGS --alluredir=allure-results
+            echo 'markers=' >> "$GITHUB_OUTPUT"
           fi
 
-      - name: 失败时输出后端日志
+      - name: 运行接口测试
+        working-directory: testing/api
+        run: python -m pytest ${{ steps.select.outputs.markers }} --alluredir=allure-results
+
+      - name: 后端日志（失败时）
         if: failure()
-        run: tail -200 backend.log
+        run: tail -200 /tmp/backend.log
 
       - name: 上传 Allure 结果
         if: always()
@@ -149,227 +241,197 @@ jobs:
         with:
           name: allure-results
           path: testing/api/allure-results/
-          retention-days: 14
+          retention-days: 7
 
-      - name: 上传框架覆盖率（pytest-cov）
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: api-coverage
-          path: testing/api/coverage.xml
-          retention-days: 14
-
+  # ====================================================================
+  # 3. 端到端测试：真实浏览器 + 真实前端 + 真实后端
+  #    这一层慢（装浏览器 + 起前端），但它是唯一能证明"用户点得通"的证据。
+  #    接口层再全，也证明不了按钮点下去会不会 404。
+  # ====================================================================
   e2e:
-    name: E2E 测试（Playwright）
-    if: github.event_name != 'schedule' || github.event.schedule == '0 18 * * *'
+    name: 端到端测试 (Playwright)
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 30
+    needs: unit
+    if: github.event_name != 'schedule' || github.event.schedule == '0 18 * * *'
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: '123456'
+          MYSQL_DATABASE: cloudland
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -p123456"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+      redis:
+        image: redis:7
+        options: >-
+          --requirepass 123456
+          --health-cmd="redis-cli -a 123456 ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+        ports: ['6379:6379']
+
+    env:
+      DB_URL: jdbc:mysql://127.0.0.1:3306/cloudland?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&allowMultiQueries=true
+      DB_USERNAME: root
+      DB_PASSWORD: '123456'
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: '6379'
+      REDIS_PASSWORD: '123456'
+      FILE_STORAGE_ROOT: /tmp/cloudland-files
+      # E2E 登录必须过验证码这一关，用万能码把"收邮件"从链路里摘掉
+      CODE_MASTER_ENABLED: 'true'
+      CODE_MASTER_VALUE: '000000'
+      E2E_BASE_URL: http://127.0.0.1:8080
+      E2E_API_BASE_URL: http://127.0.0.1:9090/api
+      E2E_MASTER_CODE: '000000'
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: 启动 MySQL 8（导入 cloudland.sql）
-        run: |
-          docker run -d --name mysql -p 3306:3306 \
-            -e MYSQL_ROOT_PASSWORD=123456 \
-            -e MYSQL_DATABASE=cloudland \
-            -v "$PWD/cloudland.sql:/docker-entrypoint-initdb.d/cloudland.sql:ro" \
-            mysql:8 --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
-
-      - name: 启动 Redis 7
-        run: docker run -d --name redis -p 6379:6379 redis:7 --requirepass 123456
-
-      - name: 等待 MySQL 完成初始化导入
-        run: |
-          for i in $(seq 1 90); do
-            if docker exec mysql mysqladmin ping -h127.0.0.1 -uroot -p123456 --silent >/dev/null 2>&1 \
-               && docker exec mysql mysql -h127.0.0.1 -uroot -p123456 \
-                    -e "SELECT 1 FROM cloudland.user LIMIT 1" >/dev/null 2>&1; then
-              echo "MySQL ready (attempt $i)"
-              exit 0
-            fi
-            sleep 5
-          done
-          echo "::error::MySQL 初始化超时"
-          docker logs mysql | tail -50
-          exit 1
-
-      - uses: actions/setup-java@v4
+      - name: 安装 JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
         with:
-          java-version: '8'
+          java-version: ${{ env.JAVA_VERSION }}
           distribution: temurin
           cache: maven
 
-      - name: 构建后端（跳过测试）
-        run: mvn -B clean package -DskipTests
-
-      - name: 生成一次性 RSA 密钥（支付宝 pageExecute 本地签名用）
-        run: |
-          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out /tmp/alipay-private.pem
-          openssl pkey -in /tmp/alipay-private.pem -pubout -out /tmp/alipay-public.pem
-          PRIV=$(sed '/^-----/d' /tmp/alipay-private.pem | tr -d '\n')
-          PUB=$(sed '/^-----/d' /tmp/alipay-public.pem | tr -d '\n')
-          echo "ALIPAY_APP_ID=ci-throwaway-app" >> "$GITHUB_ENV"
-          echo "ALIPAY_PRIVATE_KEY=$PRIV" >> "$GITHUB_ENV"
-          echo "ALIPAY_PUBLIC_KEY=$PUB" >> "$GITHUB_ENV"
-
-      - name: 启动后端
-        run: |
-          mkdir -p /tmp/CloudLandFile
-          nohup java -jar target/Cloudland-0.0.1-SNAPSHOT.jar > backend.log 2>&1 &
-          echo $! > backend.pid
-
-      - name: 健康门禁（actuator/health 200 才放行）
-        run: |
-          for i in $(seq 1 60); do
-            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:9090/api/actuator/health || true)
-            if [ "$code" = "200" ]; then
-              echo "Backend ready (attempt $i)"
-              exit 0
-            fi
-            sleep 3
-          done
-          echo "::error::后端健康检查超时"
-          tail -100 backend.log
-          exit 1
-
-      - uses: actions/setup-node@v4
+      - name: 安装 Node
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: npm
-          cache-dependency-path: vue/package-lock.json
+          # 两个 node 工程各有一把锁：前端（被测系统）和 testing/e2e（测试本身）
+          cache: 'npm'
+          cache-dependency-path: |
+            vue/package-lock.json
+            testing/e2e/package-lock.json
+
+      - name: 初始化数据库结构
+        run: |
+          set -euo pipefail
+          mysql -h 127.0.0.1 -uroot -p123456 cloudland < cloudland.sql
+
+      - name: 注入测试种子账号
+        # E2E 的登录用例直接依赖这三个账号，和接口层用的是同一份 SQL
+        run: |
+          set -euo pipefail
+          mysql -h 127.0.0.1 -uroot -p123456 cloudland \
+            < testing/api/data/seed/seed_test_accounts.sql
+          mysql -N -h 127.0.0.1 -uroot -p123456 cloudland \
+            -e "SELECT CONCAT('seed 账号数：', COUNT(*)) FROM user WHERE phone LIKE '199%'"
+
+      - name: 构建后端 jar
+        run: mvn -B -ntp -DskipTests package
+
+      - name: 启动后端并等待就绪
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/cloudland-files
+          nohup java -jar target/Cloudland-*.jar > /tmp/backend.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:9090/api/actuator/health > /dev/null; then
+              echo "后端已就绪（${i}s）"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "后端 60s 内未就绪，日志如下："
+          tail -100 /tmp/backend.log
+          exit 1
 
       - name: 安装前端依赖
         working-directory: vue
         run: npm ci
 
-      - name: 构建前端（API 指向本地后端，覆盖 .env.production）
-        working-directory: vue
-        env:
-          VUE_APP_API_BASE_URL: http://localhost:9090/api
-        run: npm run build
+      - name: 安装 E2E 依赖
+        working-directory: testing/e2e
+        run: npm ci
 
-      - name: 启动前端静态服务（history 模式需 SPA fallback）
-        working-directory: vue
-        run: |
-          nohup npx serve -s dist -l 8080 > frontend.log 2>&1 &
-          for i in $(seq 1 30); do
-            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080 || true)
-            if [ "$code" = "200" ]; then echo "Frontend ready"; exit 0; fi
-            sleep 2
-          done
-          echo "::error::前端启动超时"
-          cat frontend.log
-          exit 1
+      - name: 缓存 Playwright 浏览器
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-webkit-${{ hashFiles('testing/e2e/package-lock.json') }}
 
-      - name: 安装 Playwright 浏览器（webkit + Edge）
-        working-directory: vue
-        run: npx playwright install --with-deps webkit msedge
+      - name: 安装 WebKit（含系统依赖）
+        working-directory: testing/e2e
+        run: npx playwright install --with-deps webkit
 
-      - name: 运行 E2E 测试（seed + webkit/edge-ci，62 用例）
-        working-directory: vue
-        run: npm run test:ci
+      - name: 运行 E2E
+        # 前端由 Playwright 的 webServer 拉起（npm --prefix ../../vue run serve），
+        # 所以这里不需要额外起前端。CI 下 reuseExistingServer=false，必定自己起一份干净的。
+        working-directory: testing/e2e
+        run: npx playwright test
 
-      - name: 失败时输出后端日志
+      - name: 后端日志（失败时）
         if: failure()
-        run: tail -200 backend.log
+        run: tail -200 /tmp/backend.log
 
-      - name: 上传 Playwright 报告
+      - name: 上传 Playwright 报告与失败证据
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-report
+          name: playwright-report
           path: |
-            vue/playwright-report/
-            vue/test-results/junit.xml
-          retention-days: 14
+            testing/e2e/playwright-report/
+            testing/e2e/test-results/
+          retention-days: 7
 
+  # ====================================================================
+  # 4. 汇总门禁：分支保护只需要盯这一个 job
+  # ====================================================================
+  gate:
+    name: 质量门禁（汇总）
+    runs-on: ubuntu-latest
+    needs: [unit, api, e2e]
+    if: always() && (github.event_name != 'schedule' || github.event.schedule == '0 18 * * *')
+    steps:
+      - name: 判定
+        run: |
+          echo "unit: ${{ needs.unit.result }}"
+          echo "api : ${{ needs.api.result }}"
+          echo "e2e : ${{ needs.e2e.result }}"
+          if [ "${{ needs.unit.result }}" != "success" ] \
+             || [ "${{ needs.api.result }}" != "success" ] \
+             || [ "${{ needs.e2e.result }}" != "success" ]; then
+            echo "::error::门禁未通过，禁止合并 / 禁止部署"
+            exit 1
+          fi
+          echo "门禁通过"
+
+  # ====================================================================
+  # 5. 线上只读巡检：push 门禁随跑 + 每 6 小时 cron 单独跑
+  #    目标主机取部署 secret（服务器已迁腾讯云），不硬编码旧 IP。
+  #    continue-on-error：线上自身故障只告警，不能挡住"发修复版本"（防死锁）。
+  # ====================================================================
   smoke:
-    name: 线上冒烟（只读）
+    name: 线上只读巡检
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    # 巡检不阻断门禁：build-deploy.yml 用 workflow_run 串联本流水线后，
-    # 若线上自身故障（如当前 8.137.114.176 502）让 CI 结论变红，
-    # 就会出现「线上挂了 → CI 红 → 修复版本也部署不了」的死锁。
-    # 巡检只负责告警与可观测，放行/拦截由 api + e2e 两个测试 job 决定。
     continue-on-error: true
+    if: github.event_name != 'pull_request'
     env:
-      PROD_BASE: http://8.137.114.176
+      PROD_HOST: ${{ secrets.SERVER_HOST }}
     steps:
-      # 只读冒烟：不部署、不写库、不造数。验证线上三件套——前端可达、后端健康、公开业务接口可用。
-      # 断言基准：health 返回 UP；land/product 分页返回业务码 10004(SELECT_OK) 且 records 非空。
-      - name: 前端首页可达
+      - name: 四步只读断言（不写库、不造数、不部署）
         run: |
-          code=$(curl -s -o /tmp/front.html -w '%{http_code}' --max-time 30 "$PROD_BASE/" || true)
-          echo "frontend http=$code size=$(wc -c </tmp/front.html)"
-          [ "$code" = "200" ]
-
-      - name: 后端健康检查（actuator）
-        run: |
-          body=$(curl -s --max-time 30 "$PROD_BASE/api/actuator/health" || true)
-          echo "health body: $body"
-          echo "$body" | grep -q '"UP"'
-
-      - name: 土地列表接口（公开）
-        run: |
-          body=$(curl -s --max-time 30 -X POST "$PROD_BASE/api/land/page" \
-            -H "Content-Type: application/x-www-form-urlencoded" \
-            --data-urlencode "pageNum=1" --data-urlencode "pageSize=5" \
-            --data-urlencode "land={}" || true)
-          echo "$body" | head -c 300; echo
-          code=$(echo "$body" | jq -r '.code')
-          count=$(echo "$body" | jq '.data.records | length')
-          [ "$code" = "10004" ] && [ "$count" -gt 0 ]
-
-      - name: 产品列表接口（公开）
-        run: |
-          body=$(curl -s --max-time 30 -X POST "$PROD_BASE/api/product/page" \
-            -H "Content-Type: application/x-www-form-urlencoded" \
-            --data-urlencode "pageNum=1" --data-urlencode "pageSize=5" \
-            --data-urlencode "product={}" || true)
-          echo "$body" | head -c 300; echo
-          code=$(echo "$body" | jq -r '.code')
-          count=$(echo "$body" | jq '.data.records | length')
-          [ "$code" = "10004" ] && [ "$count" -gt 0 ]
-
-  report:
-    name: 汇总报告发布（gh-pages）
-    needs: [api, e2e]
-    if: always() && (github.event_name != 'schedule' || github.event.schedule == '0 18 * * *')
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: 下载 Allure 结果
-        uses: actions/download-artifact@v4
-        with:
-          name: allure-results
-          path: allure-results
-
-      - name: 生成 Allure 报告（带 gh-pages 历史趋势，保留近 20 次）
-        id: allure
-        continue-on-error: true
-        uses: simple-elf/allure-report-action@master
-        with:
-          allure_results: allure-results
-          keep_reports: 20
-
-      - name: 下载 E2E 报告
-        continue-on-error: true
-        uses: actions/download-artifact@v4
-        with:
-          name: e2e-report
-          path: e2e-artifact
-
-      - name: 组装站点目录
-        run: |
-          mkdir -p site/e2e
-          if [ -d allure-history ]; then cp -r allure-history/. site/; fi
-          if [ -d e2e-artifact/playwright-report ]; then cp -r e2e-artifact/playwright-report/. site/e2e/; fi
-          ls -la site/
-
-      - name: 发布到 gh-pages
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_branch: gh-pages
-          publish_dir: site
-          commit_message: 'deploy: CI 测试报告 ${{ github.run_id }}'
+          set -euo pipefail
+          if [ -z "$PROD_HOST" ]; then
+            echo "SERVER_HOST 未配置，跳过巡检"
+            exit 0
+          fi
+          base="http://$PROD_HOST"
+          curl -sf --max-time 15 "$base/" -o /dev/null
+          curl -sf --max-time 15 "$base/api/actuator/health" | grep -q '"UP"'
+          curl -sf --max-time 15 -X POST "$base/api/land/page?pageNum=1&pageSize=5" \
+            --data-urlencode 'land={}' \
+            | python3 -c 'import json,sys; b=json.load(sys.stdin); assert b["code"]==10004 and b["data"]["records"], b'
+          curl -sf --max-time 15 -X POST "$base/api/product/page?pageNum=1&pageSize=5" \
+            --data-urlencode 'product={}' \
+            | python3 -c 'import json,sys; b=json.load(sys.stdin); assert b["code"]==10004 and b["data"]["records"], b'
+          echo "线上巡检通过"

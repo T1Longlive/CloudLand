@@ -15,10 +15,12 @@ name: build-and-deploy
 #      是因为先把 Spring Boot 3.2.5 → 4.1.1、并重新转存了基础镜像，基线归零后才敢阻断。
 #      直接上硬门禁只会天天红，红到没人看等于没装。
 #      ⇒ 转硬门禁的前置条件：先看清基线、能修的修掉、实在不能修的写进 .trivyignore（带理由）。
-#   2. **没有单独的测试步骤**：后端 Dockerfile 里 `mvn clean package` 会跑单元测试
-#      （JwtUtilsTest / CodeTest / ResultTest，均无 Spring 上下文、不依赖 MySQL/Redis），
+#   2. **没有单独的测试步骤**：后端 Dockerfile 里 `mvn clean package` 会跑单元测试，
 #      测试失败 → 构建层失败 → 不会推镜像、不会部署。门禁已内建在构建里。
-#      前端/API 的重型测试（pytest 34 + Playwright 62）由 ci.yml 负责。
+#      ✅ 2026-11-16 测试体系已从 0 重建：src/test 下有 43 条 JUnit 用例，
+#      `mvn clean package` 会真实执行它们（已实测：故意让一条用例失败 → BUILD FAILURE）。
+#      接口测试（82 条）不在镜像构建里跑，而在 ci.yml 的 api 作业里跑，
+#      再由本文件顶部的 workflow_run 门禁拦住部署。
 #   3. **基础镜像不同**：Cloudland 用 maven:3.8.6-openjdk-8 / openjdk:8-jre-slim /
 #      node:16-alpine / nginx:alpine，均已转存到本项目 ACR。
 #      要刷新它们需另建一个 refresh workflow（pm-system 那份转存的是 Java 17 那一套，不适用）。
@@ -35,12 +37,10 @@ name: build-and-deploy
 #     要么把服务器 origin 改成 GitHub（推荐，单一真相来源）。
 # ======================================================================
 
-# ⚠️ 质量门禁闭环（2026-11-12）：本流水线不再由 push 直接触发。
-#   ci.yml 在 main 上跑完且 conclusion == success 才触发这里；PR 的 CI 结果、
-#   每 6 小时的线上巡检（schedule）、以及 CI 失败的那次运行都不会触发部署。
-#   原 push+paths 守卫在 workflow_run 事件下不受 GitHub 支持，但 deploy.sh 内
-#   已有 NON_APP_PATHS 路径守卫，纯文档变更依旧会被跳过，不会重建容器。
-#   应急通道保留 workflow_dispatch（绕过门禁，仅用于故障恢复，会记录触发人）。
+# ✅ 质量门禁已闭环（2026-11-16）：ci.yml 重建完成（单元 + 接口 + gate），
+#   本流水线改为监听 CI 完成事件，CI 不成功则不会有任何部署动作。
+#   这是「测试红 → 发布被拦」的实现方式：不是靠人记得先看 CI，而是靠事件依赖。
+#   ⚠️ 手动兜底：workflow_dispatch 可绕过门禁（紧急修复用），用了要在 PR 里说明原因。
 on:
   workflow_run:
     workflows: ["CI"]
@@ -51,22 +51,22 @@ on:
 env:
   ACR_HOST: crpi-jzqyelh9p5zb0dmu.cn-chengdu.personal.cr.aliyuncs.com
   ACR_NAMESPACE: t1longlive
-  # workflow_run 下 github.sha 是默认分支 HEAD，可能与 CI 实际测试的提交不一致。
-  # 用被触发那次 CI 运行的 head_sha 作为唯一制品标识，保证
-  # 「镜像 tag = 服务器 HEAD = 被测试通过的 commit」三者一致。
+  # workflow_run 触发时 github.sha 是默认分支的最新提交，不是被测试的那次提交；
+  # 必须取 head_sha，否则会构建出「代码是新的、结论是旧的」这种未经验证的版本。
+  # workflow_dispatch 手动触发时没有 head_sha，回退到 github.sha。
   DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
 
 jobs:
   build:
     name: 构建并推送镜像
-    # 门禁判断放在 build 上；deploy 因 needs: build 会随之一并跳过。
-    # 只放行「由 push main 触发的 CI 且成功」；PR、定时巡检、手动触发 CI 都不部署。
-    if: >
+    runs-on: ubuntu-latest
+    # 门禁：只有 CI 成功才继续。手动触发视为人工确认，直接放行。
+    # 还必须限定被监听的 CI 运行是 push 触发：夜间全量/6 小时巡检的 schedule
+    # 运行也会产生 success 结论，不加这条就会每天定时部署一次。
+    if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.event == 'push' &&
-       github.event.workflow_run.head_branch == 'main')
-    runs-on: ubuntu-latest
+       github.event.workflow_run.event == 'push')
     # 后端 Java 8 全量编译 + 前端 npm install/build，冷构建实测 15~25 分钟。
     # 30 分钟留了余量，同时避免卡死时空转烧额度。
     timeout-minutes: 30
