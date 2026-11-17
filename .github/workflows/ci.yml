@@ -124,17 +124,6 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=10
-      redis:
-        image: redis:7
-        # 必须带密码启动：application.yml 里 redis.password 默认 123456，
-        # 起一个无密码的 Redis 会让 Lettuce 连接时报认证错误。
-        options: >-
-          --requirepass 123456
-          --health-cmd="redis-cli -a 123456 ping"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=10
-        ports: ['6379:6379']
 
     env:
       DB_URL: jdbc:mysql://127.0.0.1:3306/cloudland?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&allowMultiQueries=true
@@ -152,6 +141,29 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: 启动 Redis（带密码）
+        # 为什么不写在 services 里：services 的 options 会被原样拼进 docker create，
+        # 而 --requirepass 是 redis-server 的参数、不是 docker 的参数，
+        # docker create 会以 exit 125 直接拒绝（unknown flag）——
+        # 2026-11-17 首跑就死在 "Initialize containers"，api / e2e 两个作业同时红。
+        # services 又不支持指定 command，所以这里显式跑一个容器并自己等健康。
+        # 密码必须开：application.yml 的 redis.password 默认 123456，
+        # 起一个无密码的 Redis 会让 Lettuce 认证失败。
+        run: |
+          set -euo pipefail
+          docker run -d --name ci-redis -p 6379:6379 redis:7 \
+            redis-server --requirepass 123456
+          for i in $(seq 1 30); do
+            if docker exec ci-redis redis-cli -a 123456 ping 2>/dev/null | grep -q PONG; then
+              echo "Redis 已就绪（${i}s）"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Redis 30s 内未就绪，日志如下："
+          docker logs ci-redis
+          exit 1
 
       - name: 安装 JDK ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v4
@@ -266,15 +278,6 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=10
-      redis:
-        image: redis:7
-        options: >-
-          --requirepass 123456
-          --health-cmd="redis-cli -a 123456 ping"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=10
-        ports: ['6379:6379']
 
     env:
       DB_URL: jdbc:mysql://127.0.0.1:3306/cloudland?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&allowMultiQueries=true
@@ -293,6 +296,29 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: 启动 Redis（带密码）
+        # 为什么不写在 services 里：services 的 options 会被原样拼进 docker create，
+        # 而 --requirepass 是 redis-server 的参数、不是 docker 的参数，
+        # docker create 会以 exit 125 直接拒绝（unknown flag）——
+        # 2026-11-17 首跑就死在 "Initialize containers"，api / e2e 两个作业同时红。
+        # services 又不支持指定 command，所以这里显式跑一个容器并自己等健康。
+        # 密码必须开：application.yml 的 redis.password 默认 123456，
+        # 起一个无密码的 Redis 会让 Lettuce 认证失败。
+        run: |
+          set -euo pipefail
+          docker run -d --name ci-redis -p 6379:6379 redis:7 \
+            redis-server --requirepass 123456
+          for i in $(seq 1 30); do
+            if docker exec ci-redis redis-cli -a 123456 ping 2>/dev/null | grep -q PONG; then
+              echo "Redis 已就绪（${i}s）"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Redis 30s 内未就绪，日志如下："
+          docker logs ci-redis
+          exit 1
 
       - name: 安装 JDK ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v4
