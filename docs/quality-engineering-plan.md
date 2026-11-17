@@ -402,3 +402,68 @@ E2E 造数时想按手机号定位刚注册的账号，结果每次捞回全表 
 3. 前端单测（当前 0）：`utils/auth.js` 登录态缓存、`config/app.js` URL 归一化都是纯函数。
 4. E2E 扩容：后台（登录 → 土地/产品/订单管理）、删单/支付跳转分支。
 5. 后端 6 个 xfail 缺陷本体，业务代码仍未动。
+
+## 12. 2026-11-17 晚：面试补强四项（并发 / 前端单测 / 报告发布 / lint）
+
+按"面试能讲、能当场演、经得起追问"的标准做的四项，全部已进 CI 并跑绿（`116c946`）。
+
+### 12.1 并发用例：挖出第 7、8 个缺陷
+
+`test_concurrency.py`（2 条，p1）：库存 1 件 + 10 路并发、库存 20 + 8 路并发，各跑多轮。
+配套补了 `services/product_service.create`（multipart 造数），顺手关掉"产品写盘接口无覆盖"的缺口。
+
+实测（本地连续 3 轮稳定复现）：
+- **超卖**：库存 1 件，10 路并发 **8 单成交**；
+- **丢失更新**：库存 20、8 单全成交，库存只扣了 **1~2**。
+
+根因：`addOrder` 的 `读 num → 判断 → 写回绝对值`，SELECT 不加锁，并发读同一旧值都放行。
+修复方向写在用例类注释里（原子 `UPDATE ... WHERE num >= ?` 看 affectedRows，或 `SELECT ... FOR UPDATE`），
+测试不改业务代码——改三行让它变绿，等于把"这里曾并发漏洞"从历史里抹掉。
+
+设计要点（决定"稳定复现"还是"偶尔抽风"）：Barrier 同步起跑、多轮重复、每轮独立产品、
+每条线程独立 HttpClient（`requests.Session` 不保证线程安全）、断言不变量而非"必须失败"。
+
+### 12.2 前端单测 + 覆盖率阈值
+
+Vitest + jsdom，**21 条**，只打两个纯逻辑模块：
+`config/app.spec.js`（5 条：兜底 baseUrl 必须带 `/api`、尾斜杠归一化、资源前缀、origin、window 挂载）、
+`utils/auth.spec.js`（16 条：token 优先级与字面量 `null` 陷阱、记住我分支、clearAuthState、
+缓存 TTL 与"false 也是有效结果"、fetchCurrentUser 20005/20003、loginWithPassword 三种形态）。
+
+覆盖率口径只统计 `src/utils` 与 `src/config`（组件交给 E2E，不拿组件稀释分母），
+现状 100% 行 / 97.8% 分支，阈值 **90% 行/函数/语句、80% 分支**（ratchet）。
+Python 侧接口作业在全量跑时加 `--cov-fail-under=80`（当前 82%），PR 子集不卡。
+
+⚠️ vitest 5 的 engines 是 `^22.12 || ^24 || >=26`，所以 frontend 作业用 Node 22，
+不要跟着 e2e 用 20。
+
+### 12.3 Allure 报告发布到 gh-pages
+
+新增 `allure-report` 作业：下载结果 → 装 Allure CLI 2.29.0 → generate →
+`peaceiris/actions-gh-pages@v4` 推 gh-pages。`continue-on-error` + `permissions: contents: write`，
+作业不进 gate——报告发布失败不该阻塞发布，但会在摘要里留痕。
+
+**待人工一步**：仓库 Settings → Pages → Source 选 `gh-pages` 分支。
+开通前 `https://t1longlive.github.io/CloudLand/` 是 404（gh-pages 分支已存在，9ba728f）。
+
+### 12.4 lint/format 门禁
+
+- Python：`ruff.toml` 开 E/F/W/I，ignore E501（中文注释行宽口径不一致）；
+  刻意不选 D/ANN/C90——注释是"讲为什么"，docstring 规则只会逼出废话。
+  落地只清出 7 处（4 缺尾换行、2 尾随空格、1 未用导入）。
+- 前端：`eslint.config.mjs`（flat + eslint-plugin-vue），只开会真出 bug 的规则，
+  补了 FormData/URL/location 等浏览器全局（否则全是假错），顺手修掉 6 处 v-for 缺 `:key`。
+  结果 0 errors / 14 warnings，warnings 只打印不阻塞。
+- CI：api 作业 pytest 前跑 ruff，frontend 作业单测前跑 eslint，不新开作业。
+
+### 12.5 现状数字（面试口径）
+
+| 层 | 条数 | 门禁 |
+|---|---|---|
+| 单元（JUnit 5） | 83 | `mvn test`，JaCoCo 度量（无阈值） |
+| 前端单测（Vitest） | 21 | 覆盖率阈值 90/80，ESLint errors 阻塞 |
+| 接口（pytest） | 116（105 passed + 3 skipped + 8 xfailed） | ruff + 全量覆盖率 ≥80% |
+| 端到端（Playwright） | 7 | 固定 ubuntu-22.04 + WebKit |
+| 缺陷记录 | 8 条 xfail(strict) | 修好即 XPASS 转红 |
+
+CI 七个作业：unit / frontend / api / e2e / allure-report / gate / smoke。
