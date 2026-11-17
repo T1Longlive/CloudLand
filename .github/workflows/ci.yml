@@ -296,11 +296,8 @@ jobs:
       E2E_BASE_URL: http://127.0.0.1:8080
       E2E_API_BASE_URL: http://127.0.0.1:9090/api
       E2E_MASTER_CODE: '000000'
-      # 把 dev server 的绑定地址钉死在 127.0.0.1，与 E2E_BASE_URL 对齐。
-      # vue.config.js 里写的是 host:'localhost'，而 Node 17+ 的 DNS 解析是 verbatim，
-      # localhost 可能先解析到 ::1 —— 那样服务只监听 IPv6，Playwright 探 127.0.0.1
-      # 会一直 ECONNREFUSED，直到 webServer 超时，报错还看不出是地址问题。
-      E2E_WEB_SERVER_COMMAND: npm --prefix ../../vue run serve -- --host 127.0.0.1
+      # 前端由下面的独立步骤启动，Playwright 不再自己拉一份（否则超时信息不可读）
+      E2E_SKIP_WEB_SERVER: '1'
 
     steps:
       - uses: actions/checkout@v4
@@ -386,6 +383,25 @@ jobs:
         working-directory: testing/e2e
         run: npm ci
 
+      - name: 启动前端并等编译完成
+        # 为什么要单独一步：vue.config.js 里 parallel:false，webpack 单线程编译，
+        # 冷 runner 上要一两分钟。交给 Playwright 的 webServer 等，超时只报一句
+        # "Timed out waiting for http://..."，看不到编译日志。这里给 300s 并把日志落盘。
+        run: |
+          set -euo pipefail
+          cd vue
+          nohup npm run serve -- --host 127.0.0.1 --port 8080 > /tmp/frontend.log 2>&1 &
+          for i in $(seq 1 300); do
+            if curl -sf http://127.0.0.1:8080/ > /dev/null; then
+              echo "前端已就绪（${i}s）"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "前端 300s 内未就绪，日志如下："
+          tail -80 /tmp/frontend.log
+          exit 1
+
       - name: 缓存 Playwright 浏览器
         uses: actions/cache@v4
         with:
@@ -431,6 +447,12 @@ jobs:
             echo '```'
             tail -150 /tmp/e2e.log 2>/dev/null || echo '(没有 /tmp/e2e.log)'
             echo '```'
+            if [ -f /tmp/frontend.log ]; then
+              echo '### 前端编译日志（末尾 60 行）'
+              echo '```'
+              tail -60 /tmp/frontend.log
+              echo '```'
+            fi
             if [ -f /tmp/backend.log ]; then
               echo '### 后端日志（末尾 40 行）'
               echo '```'

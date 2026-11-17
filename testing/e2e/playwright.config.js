@@ -69,13 +69,21 @@ module.exports = defineConfig({
   /**
    * 前端由 Playwright 负责起停：`npx playwright test` 一条命令可跑，不用先手工 npm run serve。
    * 已在跑（比如本地正开着 dev server）就复用，不抢占端口。
+   *
+   * CI 里改成由流水线显式启动（E2E_SKIP_WEB_SERVER=1）：
+   * Playwright 自己起的时候，超时只报一句 "Timed out waiting for http://..."，
+   * 看不到 webpack 编译到哪一步、报了什么错。把启动过程放到独立步骤里，
+   * 失败就有 frontend.log 可看，也能按需要把等待时间调到 300s（冷 runner 编译慢）。
    */
-  webServer: {
-    command: WEB_SERVER_COMMAND,
-    url: BASE_URL,
-    reuseExistingServer: !process.env.CI,
-    timeout: 180_000,
-    stdout: 'ignore',
-    stderr: 'pipe',
-  },
+  webServer:
+    process.env.E2E_SKIP_WEB_SERVER === '1'
+      ? undefined
+      : {
+          command: WEB_SERVER_COMMAND,
+          url: BASE_URL,
+          reuseExistingServer: !process.env.CI,
+          timeout: 180_000,
+          stdout: 'ignore',
+          stderr: 'pipe',
+        },
 });
