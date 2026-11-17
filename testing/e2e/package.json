@@ -1,0 +1,17 @@
+{
+  "name": "cloudland-e2e",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cloudland 端到端测试（Playwright）。独立 node 工程：不污染 frontend 的依赖树，也不让前端构建被测试依赖拖累。",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "test:login": "playwright test tests/login.spec.js",
+    "report": "playwright show-report",
+    "install:browsers": "playwright install --with-deps webkit"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.59.1"
+  }
+}

@@ -1,7 +1,7 @@
 <template>
   <div>
     <!--登录表单-->
-    <div class="login-form" v-show="loginVisible">
+    <div class="login-form" data-testid="login-form" v-show="loginVisible">
       <form action="">
         <div id="close-login-form" class="fas fa-times" v-if="frond" @click="loginVisible=false"></div>
         <a href="#" class="logo mr-auto">
@@ -36,7 +36,7 @@
       </form>
     </div>
     <!--注册表单（仅前台）-->
-    <div class="register-form" v-show="frond && registerVisible">
+    <div class="register-form" data-testid="register-form" v-show="frond && registerVisible">
       <div id="close-register-form" class="fas fa-times" @click="registerVisible=false"></div>
       <form action="">
         <a href="#" class="logo mr-auto">
