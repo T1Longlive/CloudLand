@@ -168,6 +168,10 @@ npx playwright test --ui                      # 时间轴调试器
 npx playwright show-report                    # 上次的 HTML 报告
 ```
 
+> CI 上必须显式注入 `VUE_APP_API_BASE_URL`（前端打 API 的地址是**编译期**注入的）：
+> `VUE_APP_API_BASE_URL=http://127.0.0.1:9090/api`。仓库里没有 `.env.local`（那是本地未跟踪文件），
+> 少了这条 CI 就会走到兜底值，历史上兜底值少写 `/api` 导致所有接口 404，而页面看起来完全正常。
+>
 > E2E 也不需要手工起前端：`playwright.config.js` 里配了 `webServer`
 > （`npm --prefix ../../vue run serve`），本地已在跑就复用，CI 里自己起一份。
 > 后端仍要自己起（9090），因为它是被测系统的一部分，不该被测试框架"顺手启动"——
@@ -263,13 +267,14 @@ class 链 / nth-child / 兄弟结构  ← 禁止。今天能跑，改一次布�
 `trace: retain-on-failure` + 截图 + 录像，且 `retries = 0`。
 重试会把 flaky 变成"偶尔红一下"的噪音，三个月后没人敢信这套用例；真不稳就修根因。
 
-### 写 E2E 时踩到的三个真实坑（都会反复出现）
+### 写 E2E 与上 CI 时踩到的四个真实坑（都会反复出现）
 
 | 坑 | 现象 | 根因 |
 |---|---|---|
 | el-popper 会搬家 | `[data-testid=register-form] .el-cascader__dropdown` 打开后变成 0 个元素 | 弹层展开时节点被移到 `document.body`，作用域失效。改成用应用声明的 `popper-class` 全页定位 |
 | 地址校验正则不许空格 | 详细地址填「…天府大道 1 号 E2E」被判成"最低填五个字" | 前端 `/^\S{5,}$/`，`\S` 不含空格 |
 | 提示浮层活 1 秒 | 断言"注册成功"时浮层已经消失，看不出失败原因 | 断言改为 `waitForResponse` 抓 `/user/register` 的 `code`，浮层只做辅助佐证 |
+| 未跟踪的 `.env.local` | 本地 7/7 全绿，CI 上浏览器发出去的接口全 404（页面照常渲染） | 仓库里没有 `vue/.env.local`，CI 上 `VUE_APP_API_BASE_URL` 为空 → 走兜底值 `http://localhost:9090`，少了 `/api`；修法：CI 显式注入，兜底值本身也补上 `/api` |
 
 ### 与接口层的分工（别让 E2E 越界）
 

@@ -323,6 +323,8 @@ mvn test                                                        # 83
 
 `testing/e2e/` 独立 node 工程落地，**7 条用例 / 3 条链路 / 连续 3 轮全绿（~15s）**，三轮跑完库内零残留（131/132 段账号 0、`E2E产品*` 0）。
 
+2026-11-17 已在 GitHub Actions 真实 runner 上跑通（CI Run #281 五项全绿），排障过程见 11.7。
+
 | spec | 条数 | 覆盖 |
 |---|---|---|
 | `login.spec.js` | 4 | 客户登录成功 / 密码错误提示 / 登录后进个人中心（`frond` 头回归点）/ 未登录被路由守卫弹回 |
@@ -362,9 +364,27 @@ E2E 造数时想按手机号定位刚注册的账号，结果每次捞回全表 
 
 - `vue/package.json` 移除 4 个测试专用依赖（`@playwright/test`、`@types/node`、`ioredis`、`mysql2`），`npm install --package-lock-only` 重生成 lock（**-433 行**），`npm ci --dry-run` 验证一致——这次没留"只删 json 弄坏 npm ci"的坑。
 - `ci.yml` 新增 **e2e job**（MySQL/Redis service + jar + `npm ci` ×2 + `playwright install --with-deps webkit`，前端由 Playwright `webServer` 自己拉起），`gate` 纳入 e2e 结论。触发矩阵同 10.3：PR / push / 夜间跑，6 小时巡检跳过。
-- **未验证项**：本地无 GitHub 网络权限，e2e job 尚未在真实 runner 跑过；`npm run build` 本地被沙箱的文件删除防护拦下（不是代码问题），生产构建是否通过要等 CI。
+- ~~未验证项：e2e job 尚未在真实 runner 跑过~~ → **2026-11-17 已在真实 runner 跑通**，见 11.8。
 
-### 11.7 下一步
+### 11.7 CI 首跑排障：4 轮才绿（面试可讲的完整链路）
+
+第一次真正把本地体系推上 runner，暴露的全是"本地环境替你兜住的假设"。
+
+| 轮次 | 现象 | 根因 | 修法 |
+|---|---|---|---|
+| #274 | api / e2e 都死在 `Initialize containers`，pytest 一行没跑 | `services.redis.options` 里写了 `--requirepass`，它被拼进 `docker create`，而这是 redis-server 的参数不是 docker 的参数 → exit 125 | 改成独立 step `docker run ... redis-server --requirepass`，自己轮询 ping 等健康 |
+| #275 | api 绿了，e2e 挂在 `playwright install --with-deps`，只有 "exit code 1" | `ubuntu-latest` 已开始迁往 Ubuntu 26，`--with-deps` 的发行版→包名映射对不上 | e2e 固定 `ubuntu-22.04`（可复现优先于最新） |
+| #277 | e2e 挂在 `运行 E2E`，仍无日志 | 前端由 Playwright 的 webServer 拉起，超时只报一句 "Timed out waiting for http://…"，看不到 webpack 卡在哪 | 前端改为独立 step 启动、等 300s、日志落盘；`E2E_SKIP_WEB_SERVER=1` 跳过自启 |
+| #279 | 用例真跑了：`#user-msg` 文本是 `" 欢迎您， "`，等 `.el-notification` 超时 | **浏览器侧接口全 404**：仓库里没有 `vue/.env.local`（未跟踪的本地文件），CI 上 `VUE_APP_API_BASE_URL` 为空 → 走 app.js 兜底值 `http://localhost:9090`，少了 `/api` | CI 显式注入 `.../api`；app.js 兜底值补 `/api`（默认值本身就是 bug） |
+| #281 | **全绿**（unit / api / e2e / smoke / gate） | — | — |
+
+三个教训，比"CI 绿了"更值钱：
+
+1. **"只给 exit code" 不是没办法，是没设计观测点**。第 3 轮开始把失败行打成 `::error::` 注解——注解能被 API 读到，step summary 不能。排障通道要提前设计，不能等挂了再想办法。
+2. **未跟踪文件是"只能在我机器上跑"的头号来源**。`.env.local` 覆盖了一个错误默认值，本地永远绿，CI 永远红。
+3. **本地复现优先于猜**。第 4 轮之前先在本地做了两个反证：干净重装依赖后 dev server 能编译、用 `127.0.0.1:8080` 跑 7/7 全绿——把"依赖被删少了""地址/CORS 问题"两个假设直接排除，才把范围收窄到 API 基址。
+
+### 11.8 下一步
 
 1. commit（用户确认）→ push（用户确认）→ 观察 CI 首跑（unit/api/e2e/gate 四绿）→ IDEA Reload Maven。
 2. JaCoCo check 阈值（基线 25.3% 收敛后按包设）。
