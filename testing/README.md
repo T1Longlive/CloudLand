@@ -62,6 +62,7 @@ testing/
 │       ├── test_trolley.py          #   购物车增查删 + 越权删
 │       ├── test_pay.py              #   支付金额防篡改/归属/交易映射 TTL
 │       ├── test_alipay_notify.py    #   支付宝回调：验签/幂等/篡改/状态门槛
+│       ├── test_concurrency.py      #   并发：库存超卖 / 丢失更新（两轮竞态复现）
 │       └── test_msg.py              #   留言限流/搜索
 └── e2e/                             # 端到端测试（Playwright，独立 node 工程）
     ├── playwright.config.js         #   清代理、webkit、失败留 trace
@@ -104,7 +105,7 @@ src/test/java/                       # 单元测试（JUnit 5）
 | 层 | 用例数 | 结果 | 耗时 | 依赖 |
 |---|---|---|---|---|
 | 单元（JUnit 5） | 83 | 全绿 | ~1s | 无外部依赖；JaCoCo 行覆盖基线 25.3% |
-| 接口（pytest） | 114（108 passed + 6 xfailed） | 全绿 | ~6s | MySQL + Redis + 后端 |
+| 接口（pytest） | 116（105 passed + 3 skipped + 8 xfailed） | 全绿 | ~10s | MySQL + Redis + 后端 |
 | 端到端（Playwright / WebKit） | 7 | 连续 3 轮全绿 | ~15s | 后端 + MySQL + Redis + 前端 |
 | 支付回调（自动化） | 3 | 验签通过→改单、重复投递幂等、篡改被拒、非成功状态忽略 | ~1s | 需一对配对密钥（CI 现场生成） |
 | 稳定性 | — | 三轮结果一致、临时数据零残留 | — | — |
@@ -112,7 +113,7 @@ src/test/java/                       # 单元测试（JUnit 5）
 
 `xfailed` 是**有意的**：那是 6 条已确认缺陷的"缺陷记录用例"，见下一节。
 
-## 这套框架抓到的真实缺陷（6 个，全部已固化为用例）
+## 这套框架抓到的真实缺陷（8 个，全部已固化为用例）
 
 | # | 缺陷 | 影响 | 用例 |
 |---|---|---|---|
@@ -122,6 +123,8 @@ src/test/java/                       # 单元测试（JUnit 5）
 | 4 | `POST /msg/page` 的 `phone` 条件被静默忽略 | 后台按手机号搜索返回全部数据，运营据此判断"这人没留过言" | `test_msg.py::test_msg_page_filter_by_phone_returns_nothing` |
 | 5 | 注册缺 `detailedAddress` 返回 500 | 服务端无参数校验，5xx + 堆栈外泄 | `test_auth.py::test_register_without_detailed_address` |
 | 6 | `POST /user/page` 的 `phone` 条件被静默忽略 | 与 #4 同源：后台按手机号核对用户，拿到的是全表，会对错的人做改绑/禁用 | `test_user.py::test_page_users_filter_by_phone_must_narrow_results` |
+| 7 | 并发下单**超卖**：库存 1 件，10 路并发 8 单成交 | 库存扣减是「读 → 判断 → 写回绝对值」，SELECT 不加锁，两个事务读同一旧值就都放行 | `test_concurrency.py::test_concurrent_orders_must_not_oversell` |
+| 8 | 并发下单**丢失更新**：库存 20、8 单全成交，只扣 1~2 | 与 #7 同源（写回绝对值导致 lost update），库存充足时表现为少扣而不是多卖 | `test_concurrency.py::test_concurrent_orders_must_not_lose_stock_updates` |
 
 **#6 是怎么被发现的**（值得一提的路径）：写 E2E 时要按手机号定位"刚注册的临时账号"以便清理，结果每次捞回来的都是全表。造数工具反过来把产品缺陷暴露了出来——这也是为什么测试框架要自己造数、自己清数，而不是依赖现成数据。
 

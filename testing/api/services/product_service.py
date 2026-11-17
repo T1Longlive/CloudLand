@@ -1,5 +1,12 @@
 """产品业务层：对应 ProductController。与 LandService 同构，只封装无文件上传的接口。"""
+import base64
 import json
+
+# 1x1 透明 PNG：新增产品接口强制要一张图（@RequestParam MultipartFile productImg），
+# 用最小合法文件，不必在仓库里存二进制素材。
+_TINY_PNG = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+)
 
 
 class ProductService:
@@ -19,6 +26,18 @@ class ProductService:
                 "pageSize": page_size,
                 "product": json.dumps(product or {}, ensure_ascii=False),
             },
+        )
+
+    def create(self, product: dict):
+        """新增产品（ADMIN_RULES，需 power>=1）。
+
+        入参形式与后端签名对齐：product 是 **JSON 字符串的表单字段**，
+        productImg 是文件字段。写成 json= 会直接 400 —— 和注册接口同一个坑。
+        """
+        return self.client.post(
+            "/product",
+            data={"product": json.dumps(product, ensure_ascii=False)},
+            files={"productImg": ("test.png", _TINY_PNG, "image/png")},
         )
 
     def delete(self, ids):
