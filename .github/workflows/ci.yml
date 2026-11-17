@@ -296,6 +296,11 @@ jobs:
       E2E_BASE_URL: http://127.0.0.1:8080
       E2E_API_BASE_URL: http://127.0.0.1:9090/api
       E2E_MASTER_CODE: '000000'
+      # 把 dev server 的绑定地址钉死在 127.0.0.1，与 E2E_BASE_URL 对齐。
+      # vue.config.js 里写的是 host:'localhost'，而 Node 17+ 的 DNS 解析是 verbatim，
+      # localhost 可能先解析到 ::1 —— 那样服务只监听 IPv6，Playwright 探 127.0.0.1
+      # 会一直 ECONNREFUSED，直到 webServer 超时，报错还看不出是地址问题。
+      E2E_WEB_SERVER_COMMAND: npm --prefix ../../vue run serve -- --host 127.0.0.1
 
     steps:
       - uses: actions/checkout@v4
@@ -411,10 +416,28 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: 运行 E2E
-        # 前端由 Playwright 的 webServer 拉起（npm --prefix ../../vue run serve），
+        # 前端由 Playwright 的 webServer 拉起（命令见 env.E2E_WEB_SERVER_COMMAND），
         # 所以这里不需要额外起前端。CI 下 reuseExistingServer=false，必定自己起一份干净的。
         working-directory: testing/e2e
-        run: npx playwright test
+        run: |
+          set -o pipefail
+          npx playwright test 2>&1 | tee /tmp/e2e.log
+
+      - name: 失败时把用例输出写进摘要
+        if: failure()
+        run: |
+          {
+            echo '### E2E 失败输出（末尾 150 行）'
+            echo '```'
+            tail -150 /tmp/e2e.log 2>/dev/null || echo '(没有 /tmp/e2e.log)'
+            echo '```'
+            if [ -f /tmp/backend.log ]; then
+              echo '### 后端日志（末尾 40 行）'
+              echo '```'
+              tail -40 /tmp/backend.log
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: 后端日志（失败时）
         if: failure()
