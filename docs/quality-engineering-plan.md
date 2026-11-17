@@ -182,7 +182,7 @@ testing/api/
 | 本地 Redis     | 6379，密码 123456                                                                     |
 | 种子测试账号       | 19900000001（客户）/ 19900000002（员工）/ 19900000003（管理员），密码均 `Test@123456`               |
 | ⚠️ 演示账号勿用于测试 | 18140213287 在本地库 power 已非 2，admin 接口会 403                                          |
-| push 即部署     | push 到 main（命中 paths）触发 GitHub Actions → 构建推 ACR → deploy.sh → 生产 8.137.114.176 |
+| push 即部署     | push 到 main（命中 paths）触发 GitHub Actions → 构建推 ACR → deploy.sh → 生产 43.136.135.75 |
 
 ## 7. 进度日志
 

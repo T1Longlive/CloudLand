@@ -70,8 +70,9 @@ alipay:
   appId: ${ALIPAY_APP_ID:your-sandbox-app-id}
   privateKey: ${ALIPAY_PRIVATE_KEY:your-app-private-key}
   publicKey: ${ALIPAY_PUBLIC_KEY:your-alipay-public-key}
-  notifyUrl: ${ALIPAY_NOTIFY_URL:http://8.137.114.176/api/alipay/notify}
-  returnUrl: ${ALIPAY_RETURN_URL:http://8.137.114.176/user/myOrder}
+  # 默认值只用于本地/兜底；生产由 .env 注入，改主机时两边都要动
+  notifyUrl: ${ALIPAY_NOTIFY_URL:http://43.136.135.75/api/alipay/notify}
+  returnUrl: ${ALIPAY_RETURN_URL:http://43.136.135.75/user/myOrder}
   gatewayUrl: https://openapi-sandbox.dl.alipaydev.com/gateway.do
 
 mybatis-plus:
