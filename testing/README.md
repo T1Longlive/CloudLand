@@ -144,9 +144,9 @@ python -m venv .venv
 mysql -h127.0.0.1 -uroot -p123456 cloudland < data/seed/seed_test_accounts.sql
 
 # 接口测试
-./.venv/Scripts/python.exe -m pytest                            # 全量 110 条
+./.venv/Scripts/python.exe -m pytest                            # 全量 114 条
 ./.venv/Scripts/python.exe -m pytest -m smoke                   # 核心链路 47 条
-./.venv/Scripts/python.exe -m pytest -m "smoke or p0"            # CI 里 PR 跑的集合，77 条
+./.venv/Scripts/python.exe -m pytest -m "smoke or p0"            # CI 里 PR 跑的集合，79 条
 ./.venv/Scripts/python.exe -m pytest --alluredir=allure-results  # 带报告
 ./.venv/Scripts/python.exe -m pytest --cov=common --cov=services --cov-report=term-missing
 ```
@@ -249,7 +249,7 @@ npx playwright show-report                    # 上次的 HTML 报告
 
 | 阶段 | 内容 | 状态 |
 |---|---|---|
-| 1 | 接口框架：三层分离 + 双层断言 + 数据驱动 + Allure | ✅ 111 条（含契约/支付/购物车/订单写路径） |
+| 1 | 接口框架：三层分离 + 双层断言 + 数据驱动 + Allure | ✅ 114 条（含契约/支付/购物车/订单写路径/支付宝回调） |
 | 2 | 单元测试：JUnit 5 打纯函数、JWT、码表、订单不变量 | ✅ 83 条 + JaCoCo 度量，门禁已实测有效 |
 | 3 | E2E：Playwright 覆盖登录、注册、下单 | ✅ 7 条 / 连续 3 轮全绿（含三级地址联动、自动造数清数） |
 | 4 | 数据治理：幂等 seed、造数工厂、自动清理 | ✅ 工厂 + 幂等 seed + API 清理 + Redis 键清理 + E2E 临时账号/产品自动删，三轮零残留 |

@@ -237,6 +237,7 @@ testing/api/
 **分层调度与覆盖率**
 
 - 各 `test_*.py` 用模块级 `pytestmark` 打标：auth/contract=smoke，user/pay=p0，order=regression。PR 跑 `-m "smoke or p0"`（27 条），push main 与 UTC 18 点（北京 02:00）夜间 cron 跑全量 34 条 + E2E 全量；每 6 小时的 schedule 仍只跑线上只读巡检。
+  - ⚠️ **2026-11-17 更正**：`regression` 这一档在当天的重构里已取消（`pytest.ini` 只注册 smoke/p0/p1），`-m regression` 现在收集到 0 条——`pytest.ini` 开了 `--strict-markers`，未注册的 marker 会直接报错，所以这三档是唯一事实。原文保留在此仅作变更记录，不要照着它打标。
 - `requirements.txt` 加 `pytest-cov`，CI 上传 `coverage.xml`。**口径要说清**：这里量的是 Python 测试框架自身代码（common/、services/）覆盖率 98%，不是后端 Java 代码覆盖率；后端需另接 JaCoCo agent，简历里别混为一谈。
 
 **仍未完成（别写进简历）**
@@ -251,7 +252,7 @@ testing/api/
 
 - **2026-11-12**：W8 质量门禁闭环收口。提交 testing/api 三层重构、串联 CI→部署门禁、marker 分层调度 + pytest-cov（98%）、修复 webkit 代理导致的「CORS 假 flaky」（62/62 全绿）、smoke 防死锁；同步修正文档漂移与 .gitignore。
 
-## 10. 2026-11-17 进度与接手指南（当前最新）
+## 10. 2026-11-17 进度与接手指南（20:00 快照，最新见第 11 节）
 
 ### 10.1 实测基线（本地真实环境）
 
@@ -261,6 +262,8 @@ testing/api/
 | 接口（pytest） | 110（105 passed + 5 xfailed） | 连续 3 轮全绿 ~5.5s；零残留（134 账号 0、alipay:trade 键 0、trolley/order 计数三轮不变） |
 |  marker 子集 | smoke 47 / smoke or p0 77 | PR 跑后者 |
 | E2E | 0 | 旧套件已删（tag `v1-legacy-test-suite`），Stage 3 未开始 |
+
+> 上表是 20:00 的快照。当晚补齐 E2E 与支付回调用例后：**接口 114**（108 passed + 6 xfailed）、**E2E 7**、marker 子集 `smoke 47 / p0 73 / p1 35`（`smoke or p0` = **79**）。以第 11 节为准。
 
 ### 10.2 今日完成
 
@@ -277,8 +280,8 @@ testing/api/
 | 触发 | unit | api | gate | smoke 巡检 | 部署 |
 |---|---|---|---|---|---|
 | PR | ✅ | 子集 77 | ✅ | ✗ | ✗ |
-| push main/develop | ✅ | 全量 110 | ✅ | ✅ | 仅 main 且 CI 绿 |
-| 夜间 cron UTC18（北京 02:00） | ✅ | 全量 110 | ✅ | ✅ | ✗ |
+| push main/develop | ✅ | 全量 114 | ✅ | ✅ | 仅 main 且 CI 绿 |
+| 夜间 cron UTC18（北京 02:00） | ✅ | 全量 114 | ✅ | ✅ | ✗ |
 | 每 6 小时 cron | ✗ | ✗ | ✗ | ✅ | ✗ |
 | workflow_dispatch | ✅ | 全量 | ✅ | ✅ | 人工兜底 |
 
@@ -310,7 +313,7 @@ smoke job：四步只读断言（首页 200 / health UP / 土地分页 / 产品�
 ```bash
 # 接口（需 9090 + MySQL + Redis + seed 在线）
 cd testing/api && ./.venv/Scripts/python.exe -m pytest          # 110
-./.venv/Scripts/python.exe -m pytest -m "smoke or p0"           # 77
+./.venv/Scripts/python.exe -m pytest -m "smoke or p0"           # 79
 # 单元
 mvn test                                                        # 83
 # seed 重置（幂等）
