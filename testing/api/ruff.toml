@@ -1,0 +1,19 @@
+line-length = 120
+target-version = "py310"
+
+[lint]
+# 只开"真的会藏 bug"的四类，不追求风格统一：
+#   E/W 语法与空白问题（未使用的变量、多余缩进、裸 except 等）
+#   F   未定义名、未使用导入、f-string 缺占位符
+#   I   导入顺序（影响 review 时的可读性，且能自动修）
+# 刻意不选 D（docstring 格式）、ANN（类型标注）、C90（复杂度）：
+# 这个仓库的注释是"讲为什么"而不是"补格式"，用 docstring 规则只会逼出废话。
+select = ["E", "F", "W", "I"]
+
+# E501 不卡：本项目大量中文注释，字符宽度与 Python 计数口径不一致，
+# 卡行宽只会逼人把解释性注释拆碎，收益为负。
+ignore = ["E501"]
+
+[lint.per-file-ignores]
+# 用例里允许 assert 之外的空实现，避免为凑规则写无意义代码
+"tests/*" = ["B011"]

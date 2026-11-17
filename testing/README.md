@@ -152,6 +152,7 @@ python -m venv .venv
 mysql -h127.0.0.1 -uroot -p123456 cloudland < data/seed/seed_test_accounts.sql
 
 # 接口测试
+./.venv/Scripts/ruff.exe check .                              # 静态检查（CI 卡 errors）
 ./.venv/Scripts/python.exe -m pytest                            # 全量 114 条
 ./.venv/Scripts/python.exe -m pytest -m smoke                   # 核心链路 47 条
 ./.venv/Scripts/python.exe -m pytest -m "smoke or p0"            # CI 里 PR 跑的集合，79 条
@@ -187,6 +188,7 @@ cd vue
 npm run test:unit          # 全量 21 条
 npm run test:unit:watch    # 改代码时挂着重跑
 npm run test:unit:cov      # 带覆盖率（CI 跑的就是这条，低于阈值直接失败）
+npm run lint               # ESLint（只卡 errors，warnings 只打印）
 ```
 
 ```bash
@@ -261,7 +263,7 @@ npx playwright show-report                    # 上次的 HTML 报告
 - 把 `test_login_failure` 里的 `wrong_password` 从 YAML 删掉，观察 `-k` 过滤后的数量变化。
 - 故意把 `api` 断言里的 `20005` 改成 `20006`，看失败信息是否够定位问题。
 
-## 五个阶段的进度
+## 阶段进度
 
 | 阶段 | 内容 | 状态 |
 |---|---|---|
@@ -269,7 +271,8 @@ npx playwright show-report                    # 上次的 HTML 报告
 | 2 | 单元测试：JUnit 5（后端）+ Vitest（前端纯逻辑） | ✅ 83 + 21 条；JaCoCo 度量 + Vitest 覆盖率阈值（90% 行 / 80% 分支） |
 | 3 | E2E：Playwright 覆盖登录、注册、下单 | ✅ 7 条 / 连续 3 轮全绿（含三级地址联动、自动造数清数） |
 | 4 | 数据治理：幂等 seed、造数工厂、自动清理 | ✅ 工厂 + 幂等 seed + API 清理 + Redis 键清理 + E2E 临时账号/产品自动删，三轮零残留 |
-| 5 | 质量门禁：CI 分层调度 + 部署门禁 | ✅ ci.yml 五层（unit/api/e2e/gate/smoke）+ 调度 + workflow_run 闭环（仅 push 触发部署） |
+| 5 | 质量门禁：CI 分层调度 + 部署门禁 | ✅ ci.yml 七个作业（unit/frontend/api/e2e/allure/gate/smoke）+ 调度 + workflow_run 闭环（仅 push 触发部署） |
+| 6 | 工程纪律：ruff（Python）+ ESLint（Vue）静态检查 | ✅ 各自接入 CI，只卡 errors；顺手修掉 6 处 v-for 缺 key |
 
 ## Stage 3（E2E）为什么这么设计
 

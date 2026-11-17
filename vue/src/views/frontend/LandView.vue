@@ -24,6 +24,7 @@
             </div>
             <div class="sub-item"
                  v-for="(index)  in address"
+                 :key="index.value"
                  @click="conditionChange(index,1)"
                  :class="{ 'landSelected': index.value===Land.address }"
             >{{ index.label }}
@@ -40,6 +41,7 @@
             <div
                 class="sub-item"
                 v-for="(item,index)  in LandType"
+                :key="index"
                 @click="conditionChange(index+1,2)"
                 :class="{ 'landSelected': index+1===Land.landType }"
             >{{ item }}
@@ -56,6 +58,7 @@
             <div
                 class="sub-item"
                 v-for="(index) in LandArea"
+                :key="index"
                 @click="conditionChange(index,3)"
                 :class="{ 'landSelected': index===Land.area }"
             >{{ ">" + index }}
@@ -74,7 +77,7 @@
           </div>
         </div>
         <div class="land-list-msg">
-          <div class="item" v-for="item in tableData">
+          <div class="item" v-for="item in tableData" :key="item.id">
             <router-link :to="'/landInfo/'+item.id">
               <div class="land-msg-item">
                 <img :src="filePath+item.imageFiles[0].path " class="land-img" alt="用地封面">

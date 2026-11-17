@@ -132,6 +132,11 @@ jobs:
         working-directory: vue
         run: npm ci
 
+      - name: 静态检查 (ESLint)
+        # 默认不设 max-warnings：errors 阻塞，warnings 只打印。
+        working-directory: vue
+        run: npm run lint
+
       - name: 运行单测（含覆盖率阈值）
         # 阈值写在 vitest.config.mjs 里：低于 90% 行/函数/语句、80% 分支直接失败。
         # 口径只统计 src/utils 与 src/config —— 组件由 E2E 覆盖，
@@ -263,6 +268,12 @@ jobs:
           set -euo pipefail
           python -m pip install --upgrade pip
           pip install -r testing/api/requirements.txt
+
+      - name: 静态检查 (ruff)
+        # 只卡 errors（未定义名、未使用导入、导入顺序），不卡格式：
+        # 一次性接 format 会产出一个几百行的 diff，那种"绿"没有意义。
+        working-directory: testing/api
+        run: ruff check .
 
       - name: 选择用例集合（PR 子集 / 其余全量）
         id: select
@@ -539,7 +550,69 @@ jobs:
           retention-days: 7
 
   # ====================================================================
-  # 4. 汇总门禁：分支保护只需要盯这一个 job
+  # 4. 发布 Allure 报告到 gh-pages
+  #    报告链接比"我跑过了"有说服力：失败用例的请求响应、耗时、步骤都在里面，
+  #    对方不用装环境就能点开看。面试现场演示也用这个。
+  #
+  #    刻意 continue-on-error：gh-pages 分支和 Pages 开关属于仓库设置，
+  #    测试体系不该因为"网站没开"而阻塞整条流水线 —— 但失败会留下痕迹。
+  # ====================================================================
+  allure-report:
+    name: 发布测试报告 (Allure → gh-pages)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: api
+    # 接口作业失败时反而更想看报告，所以用 always；PR 不发布，避免污染线上报告
+    if: >-
+      always() && github.event_name != 'pull_request' &&
+      (needs.api.result == 'success' || needs.api.result == 'failure')
+    continue-on-error: true
+    permissions:
+      contents: write
+    steps:
+      - name: 下载 Allure 原始结果
+        uses: actions/download-artifact@v4
+        with:
+          name: allure-results
+          path: allure-results
+
+      - name: 安装 Allure CLI
+        run: |
+          set -euo pipefail
+          ALLURE_VERSION=2.29.0
+          curl -sSLo /tmp/allure.tgz "https://github.com/allure-framework/allure2/releases/download/${ALLURE_VERSION}/allure-${ALLURE_VERSION}.tgz"
+          sudo tar -zxf /tmp/allure.tgz -C /opt
+          echo "/opt/allure-${ALLURE_VERSION}/bin" >> "$GITHUB_PATH"
+
+      - name: 生成报告
+        run: |
+          set -euo pipefail
+          allure generate allure-results -o allure-report --clean
+          touch allure-report/.nojekyll
+          ls allure-report | head -10
+
+      - name: 推送到 gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: ./allure-report
+          force_orphan: true
+
+      - name: 在摘要里给出报告地址
+        run: |
+          OWNER="${GITHUB_REPOSITORY%%/*}"
+          REPO="${GITHUB_REPOSITORY##*/}"
+          {
+            echo "### Allure 报告已发布"
+            echo ""
+            echo "https://${OWNER,,}.github.io/${REPO}/"
+            echo ""
+            echo "首次使用：仓库 Settings → Pages，把 Source 设为 gh-pages 分支。"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ====================================================================
+  # 5. 汇总门禁：分支保护只需要盯这一个 job
   # ====================================================================
   gate:
     name: 质量门禁（汇总）
@@ -563,7 +636,7 @@ jobs:
           echo "门禁通过"
 
   # ====================================================================
-  # 5. 线上只读巡检：push 门禁随跑 + 每 6 小时 cron 单独跑
+  # 6. 线上只读巡检：push 门禁随跑 + 每 6 小时 cron 单独跑
   #    目标主机取部署 secret（服务器已迁腾讯云），不硬编码旧 IP。
   #    continue-on-error：线上自身故障只告警，不能挡住"发修复版本"（防死锁）。
   # ====================================================================

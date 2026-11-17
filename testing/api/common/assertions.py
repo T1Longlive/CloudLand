@@ -10,7 +10,6 @@
 
 所以每个用例都该按需调用 assert_http + assert_code，两个维度都要有。
 """
-import allure
 
 # 后端 Code.isSuccess() 的白名单（与 Code.java 保持一致）
 SUCCESS_CODES = {0, 10001, 10002, 10003, 10004, 20005, 20006, 30001}

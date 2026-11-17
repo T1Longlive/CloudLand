@@ -20,13 +20,14 @@
           <div class="item" @click="conditionChange(null,4)" :class="{ 'landOrder': product.id===null }">默认排序</div>
           <div class="item"
                v-for="(item,index) in order"
+               :key="item"
                @click="conditionChange(index-3,4)"
                :class="{ 'landOrder': index-3===product.id }"
           >{{ item }}
           </div>
         </div>
         <div class="land-list-msg">
-          <div class="item" v-for="item in tableData">
+          <div class="item" v-for="item in tableData" :key="item.id">
             <router-link :to="'/productInfo/'+item.id">
               <div class="land2-msg-item">
                 <img :src="filePath+item.img " class="land-img" alt="用地封面">
