@@ -364,7 +364,9 @@ E2E 造数时想按手机号定位刚注册的账号，结果每次捞回全表 
 
 - `vue/package.json` 移除 4 个测试专用依赖（`@playwright/test`、`@types/node`、`ioredis`、`mysql2`），`npm install --package-lock-only` 重生成 lock（**-433 行**），`npm ci --dry-run` 验证一致——这次没留"只删 json 弄坏 npm ci"的坑。
 - `ci.yml` 新增 **e2e job**（MySQL/Redis service + jar + `npm ci` ×2 + `playwright install --with-deps webkit`，前端由 Playwright `webServer` 自己拉起），`gate` 纳入 e2e 结论。触发矩阵同 10.3：PR / push / 夜间跑，6 小时巡检跳过。
-- ~~未验证项：e2e job 尚未在真实 runner 跑过~~ → **2026-11-17 已在真实 runner 跑通**，见 11.8。
+- ~~未验证项：e2e job 尚未在真实 runner 跑过~~ → **2026-11-17 已在真实 runner 跑通**，见 11.7。
+- **顺手修掉的生产配置缺陷**：`vue/.env.production` 原为 `http://8.137.114.176/api`（旧服务器绝对地址），构建时焊进 bundle。服务器迁腾讯云后线上前端每个接口都打旧 IP，而 smoke 巡检直连 `SERVER_HOST`，所以**巡检绿、用户侧全挂**。改相对路径 `/api`，由 nginx 同源反代命中 backend，CORS 预检一并消失。验证：生产模式构建后 grep 产物，旧 IP 出现 0 次、基址为 `"/api"`。
+- **仍未处理**（需要服务器侧确认）：`src/main/resources/application.yml` 的 `ALIPAY_NOTIFY_URL` / `ALIPAY_RETURN_URL` 默认值仍是旧 IP；`nginx.conf` 的 `server_name` 也是旧 IP（单 server 块下不影响服务，但迁移语义不清）。两处都靠服务器 `.env` 覆盖，本地无法验证。
 
 ### 11.7 CI 首跑排障：4 轮才绿（面试可讲的完整链路）
 
