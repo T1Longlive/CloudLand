@@ -21,24 +21,26 @@ name: CI
 #   跑 30 分钟的流水线只会让人绕过它。
 #
 # 与 build-deploy.yml 的关系（这是门禁闭环的关键）：
-#   build-deploy.yml 用 workflow_run 监听本工作流。
-#   CI 不成功 → 部署作业不会被创建 → 镜像不会推、服务器不会动。
-#   ⚠️ 曾踩过的坑：ci.yml 被删过一次，workflow_run 找不到 "CI"，
-#      导致部署"永久卡在等待"且不报错。改这个文件名等于改部署触发条件。
+#   本工作流是「可复用工作流」：push main 时由 build-deploy.yml 以
+#   workflow_call 调用，作为其 tests 作业；测试红 → build/deploy 被 needs 跳过
+#   → 镜像不推、服务器不动。同一 commit 只跑一遍测试。
+#   PR / 定时 / 手动则直接触发本工作流。
+#   ⚠️ 旧实现是 workflow_run（本工作流跑完再触发部署），已改为 workflow_call：
+#      门禁强度不变，但测试作为部署流水线的一个显式作业可见，不再藏在上游。
+#      注意：被调用时 github.event_name 仍是调用方的事件（push），
+#      所以下方基于 event_name 的 PR/全量/巡检判断语义不变。
 # ======================================================================
 
 on:
-  push:
-    branches: [main, develop]
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - '.workbuddy/**'
+  # push 不再单独触发：push main 由 build-deploy.yml 调用本工作流，
+  # 避免同一 commit 跑两遍（直接触发一次 + 被部署流水线调用一次）。
   pull_request:
     branches: [main, develop]
+  # 作为可复用工作流被 build-deploy.yml 调用
+  workflow_call:
   workflow_dispatch:
   schedule:
-    # 夜间全量（UTC 18 = 北京 02:00）：没人 push 的日子也兜底跑一遍 110 条
+    # 夜间全量（UTC 18 = 北京 02:00）：没人 push 的日子也兜底跑一遍 116 条
     - cron: '0 18 * * *'
     # 每 6 小时线上只读巡检：只跑 smoke job，重型 job 条件跳过
     - cron: '0 */6 * * *'
