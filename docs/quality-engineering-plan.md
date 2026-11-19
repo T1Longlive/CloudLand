@@ -258,12 +258,12 @@ testing/api/
 
 | 层 | 数量 | 结果 |
 |---|---|---|
-| 单元（JUnit 5） | 83 | 全绿 ~1s；JaCoCo 行覆盖基线 25.3%（**只度量、无 check 阈值**） |
-| 接口（pytest） | 110（105 passed + 5 xfailed） | 连续 3 轮全绿 ~5.5s；零残留（134 账号 0、alipay:trade 键 0、trolley/order 计数三轮不变） |
-|  marker 子集 | smoke 47 / smoke or p0 77 | PR 跑后者 |
-| E2E | 0 | 旧套件已删（tag `v1-legacy-test-suite`），Stage 3 未开始 |
+| 单元（JUnit 5） | 82（现值；当时记 83） | 全绿 ~1s；JaCoCo 行覆盖基线 25.3%（**只度量、无 check 阈值**） |
+| 接口（pytest） | 116（现值；当时 110 = 105 passed + 5 xfailed） | 连续 3 轮全绿 ~5.5s；零残留（134 账号 0、alipay:trade 键 0、trolley/order 计数三轮不变） |
+|  marker 子集 | smoke 47 / smoke or p0 79（当时 77） | PR 跑后者 |
+| E2E | 7（现值；当时 0） | 旧套件已删（tag `v1-legacy-test-suite`）后重建 |
 
-> 上表是 20:00 的快照。当晚补齐 E2E 与支付回调用例后：**接口 114**（108 passed + 6 xfailed）、**E2E 7**、marker 子集 `smoke 47 / p0 73 / p1 35`（`smoke or p0` = **79**）。以第 11 节为准。
+> 上表最初是 20:00 的快照（括号内为当时值）。补齐 E2E 与支付回调用例后的现值：**接口 116**（105 passed + 3 skipped + 8 xfailed，`--collect-only` 实测）、**E2E 7**、marker 子集 `smoke 47 / p0 73 / p1 37`（`smoke or p0` = **79**）。以第 12.5 节现状数字为准。
 
 ### 10.2 今日完成
 
@@ -279,9 +279,9 @@ testing/api/
 
 | 触发 | unit | api | gate | smoke 巡检 | 部署 |
 |---|---|---|---|---|---|
-| PR | ✅ | 子集 77 | ✅ | ✗ | ✗ |
-| push main/develop | ✅ | 全量 114 | ✅ | ✅ | 仅 main 且 CI 绿 |
-| 夜间 cron UTC18（北京 02:00） | ✅ | 全量 114 | ✅ | ✅ | ✗ |
+| PR | ✅ | 子集 79 | ✅ | ✗ | ✗ |
+| push main/develop | ✅ | 全量 116 | ✅ | ✅ | 仅 main 且 CI 绿 |
+| 夜间 cron UTC18（北京 02:00） | ✅ | 全量 116 | ✅ | ✅ | ✗ |
 | 每 6 小时 cron | ✗ | ✗ | ✗ | ✅ | ✗ |
 | workflow_dispatch | ✅ | 全量 | ✅ | ✅ | 人工兜底 |
 
@@ -296,15 +296,15 @@ smoke job：四步只读断言（首页 200 / health UP / 土地分页 / 产品�
 
 ### 10.5 未完成（按优先级）
 
-1. **67 个文件未 commit；本地领先 origin/main 1 个 commit（11-16 那次也未推）** → 远端 CI 跑的仍是旧套件，110+83/调度/JaCoCo 均未在流水线证明。push 触发真实 CI+生产部署，**必须用户确认**。
+1. **67 个文件未 commit；本地领先 origin/main 1 个 commit（11-16 那次也未推）** → 远端 CI 跑的仍是旧套件，116+82（现值；当时 110+83）/调度/JaCoCo 均未在流水线证明。push 触发真实 CI+生产部署，**必须用户确认**。
 2. IDEA Reload Maven（用户操作，否则本地 jar/JaCoCo 继续被污染卡死）。
 3. CI 首跑与连续绿未证明；巡检首跑未验证（生产迁腾讯云后状态未知）。
 4. ~~E2E=0；`vue/package.json` 4 个测试依赖待迁~~ → **已完成，见第 11 节**（7 条用例，依赖已迁，lock 已重生成）。
-5. 前端单测 0；约 9 个端点无业务级用例（土地/产品 multipart 写盘、验证码发送、找回密码两阶段、后台改订单状态、Excel 导出、订阅/群发）。~~alipay notify~~ 已于 2026-11-17 覆盖，见 11.6；`/alipay/return` 仍缺口（依赖真实沙箱查询，要联网打支付宝）。
+5. ~~前端单测 0~~ → **已完成，现 21 条**（见 12.5）；约 9 个端点无业务级用例（土地/产品 multipart 写盘、验证码发送、找回密码两阶段、后台改订单状态、Excel 导出、订阅/群发）。~~alipay notify~~ 已于 2026-11-17 覆盖，见 11.6；`/alipay/return` 仍缺口（依赖真实沙箱查询，要联网打支付宝）。
 6. JaCoCo check 阈值延后（基线收敛后再设）；Allure gh-pages 历史趋势发布未恢复，README.en 三徽章失效。
 7. 性能/压测、Prometheus+Grafana+Alertmanager 未做。
 8. 文档漂移：docs/wiki 01/08 仍写"无后端单测/E2E 存在/Gitee/-DskipTests"；本文件第 8 节数字过时（以第 10 节为准）。
-9. 5 个 xfail 记录的**后端缺陷本体未修**（业务代码未动）：/user/page 泄露密码哈希、land/product 不存在 id 500、msg phone 过滤失效、注册缺 detailedAddress 500。
+9. 8 个 xfail 记录的**后端缺陷本体未修**（业务代码未动）：/user/page 泄露密码哈希、land/product 不存在 id 500、msg phone 过滤失效、注册缺 detailedAddress 500、user/page phone 过滤失效、并发超卖与丢失更新等。
 
 ### 10.6 下一步与跑法
 
@@ -312,10 +312,10 @@ smoke job：四步只读断言（首页 200 / health UP / 土地分页 / 产品�
 
 ```bash
 # 接口（需 9090 + MySQL + Redis + seed 在线）
-cd testing/api && ./.venv/Scripts/python.exe -m pytest          # 110
+cd testing/api && ./.venv/Scripts/python.exe -m pytest          # 116（collect 实测）
 ./.venv/Scripts/python.exe -m pytest -m "smoke or p0"           # 79
 # 单元
-mvn test                                                        # 83
+mvn test                                                        # 82（58 @Test + 2 参数化展开 24）
 # seed 重置（幂等）
 "/d/Software/MySQL 9.0/bin/mysql" --default-character-set=utf8mb4 -h127.0.0.1 -uroot -p123456 cloudland < testing/api/data/seed/seed_test_accounts.sql
 ```
@@ -361,7 +361,7 @@ testing/e2e/
 
 ### 11.5 顺带发现的第 6 个真实缺陷
 
-E2E 造数时想按手机号定位刚注册的账号，结果每次捞回全表 → **`POST /user/page` 的 `phone` 条件被静默忽略**（`UserMapper.selectByCondition` 只拼了 status/id/power/username 四个 `<if>`，与 `msg/page` 同类）。已固化为 `test_user.py::test_page_users_filter_by_phone_must_narrow_results`（`xfail(strict=True)`），接口层基线由 110 → **111（105 passed + 6 xfailed）**。
+E2E 造数时想按手机号定位刚注册的账号，结果每次捞回全表 → **`POST /user/page` 的 `phone` 条件被静默忽略**（`UserMapper.selectByCondition` 只拼了 status/id/power/username 四个 `<if>`，与 `msg/page` 同类）。已固化为 `test_user.py::test_page_users_filter_by_phone_must_narrow_results`（`xfail(strict=True)`），接口层基线当时由 110 → **111（105 passed + 6 xfailed）**，现值为 116。
 
 ### 11.6 依赖与流水线
 
@@ -372,7 +372,7 @@ E2E 造数时想按手机号定位刚注册的账号，结果每次捞回全表 
 - **服务器侧核对（2026-11-17 19:10，登机实测）**：旧 IP `8.137.114.176` 已完全不通（curl 000），而 `.env` 的 `ALIPAY_NOTIFY_URL` / `ALIPAY_RETURN_URL` / `CORS_ALLOWED_ORIGINS` 仍指向它——**支付回调与支付后跳转全打在死地址上**。已备份 `.env.bak.202611171911` 后改到 `43.136.135.75` 并重建后端（health 6s 就绪）。仓库侧同步 `nginx.conf` 的 `server_name`、`application.yml` 的支付宝默认值、wiki/08 与本文档 §6（`72a31fd`，已部署，服务器容器与 nginx 配置均核验为新值）。
   另确认：容器内 `CODE_MASTER_ENABLED=false`（生产没开万能验证码），`ALIPAY_APP_ID=9021000123611619` 为沙箱应用。
 - **支付全链路已实测通过（2026-11-17 19:36，用户手动沙箱支付）**：`POST /api/alipay/pay` 金额服务端校验 `server=45.0 / client=45.00` → 19:36:32 回调落到 `http://43.136.135.75/api/alipay/notify`，`trade_status=TRADE_SUCCESS`、**验签结果 true** → 订单 `id=74` 由 `status=0` 变 `1`、`pay_time=19:36:32`。这条同时验证了三件事：回调地址修复生效、验签逻辑正确、金额重算在真实链路成立。
-  ~~仍未覆盖的是自动化~~ → **2026-11-17 已补上**：`tests/test_alipay_notify.py` 3 条（验签通过→改单、重复投递幂等、签名后篡改被拒、非 TRADE_SUCCESS 忽略），接口层 111 → **114（108 passed + 6 xfailed）**。
+  ~~仍未覆盖的是自动化~~ → **2026-11-17 已补上**：`tests/test_alipay_notify.py` 3 条（验签通过→改单、重复投递幂等、签名后篡改被拒、非 TRADE_SUCCESS 忽略），接口层当时 111 → **114（108 passed + 6 xfailed）**，现值为 116（collect 实测）。
   实现要点：测试侧用 `common/alipay_signer.py` 自签 RSA2 报文——待签串必须与 Java `AlipaySignature.getSignContent` 逐条对齐（key 升序、剔除 `sign`/`sign_type` 与空值），差一条就是永久 failure 且日志只说"验签失败"。
   密钥配对是前提：CI 里私钥/公钥同源；本地 `.env` 是「应用私钥 + 支付宝平台公钥」，不是一对，所以用例自带 `signing_pair_usable()` 自检——不配对本地 skip，**CI 缺密钥则直接 fail**（静默跳过等于这条链路没覆盖）。
   验这个过程时踩到两个坑：① `spring-boot:run` 下用 `export` 传 ALIPAY_* 没生效，改成命令行参数 `--alipay.publicKey=` 才验过（这也解释了为什么要在独立端口起第二实例验证）；② 篡改用例一开始把 `total_amount` 改成"0.01"，而默认值本来就是 0.01，等于没篡改、用例假通过——已加防呆断言。
@@ -399,9 +399,9 @@ E2E 造数时想按手机号定位刚注册的账号，结果每次捞回全表 
 
 1. commit（用户确认）→ push（用户确认）→ 观察 CI 首跑（unit/api/e2e/gate 四绿）→ IDEA Reload Maven。
 2. JaCoCo check 阈值（基线 25.3% 收敛后按包设）。
-3. 前端单测（当前 0）：`utils/auth.js` 登录态缓存、`config/app.js` URL 归一化都是纯函数。
+3. ~~前端单测（当时 0）~~ → **已完成，现 21 条**：`utils/auth.js` 登录态缓存、`config/app.js` URL 归一化都是纯函数。
 4. E2E 扩容：后台（登录 → 土地/产品/订单管理）、删单/支付跳转分支。
-5. 后端 6 个 xfail 缺陷本体，业务代码仍未动。
+5. 后端 8 个 xfail 缺陷本体，业务代码仍未动。
 
 ## 12. 2026-11-17 晚：面试补强四项（并发 / 前端单测 / 报告发布 / lint）
 
@@ -458,11 +458,13 @@ Python 侧接口作业在全量跑时加 `--cov-fail-under=80`（当前 82%）�
 
 ### 12.5 现状数字（面试口径）
 
+> 以下为按当前源码实测校准后的数字（JUnit 82 = 58 个 @Test + 2 个参数化展开 24；pytest 116 为 `--collect-only` 实测）。
+
 | 层 | 条数 | 门禁 |
 |---|---|---|
-| 单元（JUnit 5） | 83 | `mvn test`，JaCoCo 度量（无阈值） |
+| 单元（JUnit 5） | 82 | `mvn test`，JaCoCo 度量（无阈值） |
 | 前端单测（Vitest） | 21 | 覆盖率阈值 90/80，ESLint errors 阻塞 |
-| 接口（pytest） | 116（105 passed + 3 skipped + 8 xfailed） | ruff + 全量覆盖率 ≥80% |
+| 接口（pytest） | 116（105 passed + 3 skipped + 8 xfailed，collect 实测） | ruff + 全量覆盖率 ≥80% |
 | 端到端（Playwright） | 7 | 固定 ubuntu-22.04 + WebKit |
 | 缺陷记录 | 8 条 xfail(strict) | 修好即 XPASS 转红 |
 

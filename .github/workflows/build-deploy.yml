@@ -17,10 +17,11 @@ name: build-and-deploy
 #      ⇒ 转硬门禁的前置条件：先看清基线、能修的修掉、实在不能修的写进 .trivyignore（带理由）。
 #   2. **没有单独的测试步骤**：后端 Dockerfile 里 `mvn clean package` 会跑单元测试，
 #      测试失败 → 构建层失败 → 不会推镜像、不会部署。门禁已内建在构建里。
-#      ✅ 2026-11-16 测试体系已从 0 重建：src/test 下有 43 条 JUnit 用例，
+#      ✅ 2026-11-16 测试体系已从 0 重建：src/test 下现有 82 条 JUnit 用例
+#      （58 个 @Test + 2 个参数化展开 24；先前注释写 43，已按源码校准），
 #      `mvn clean package` 会真实执行它们（已实测：故意让一条用例失败 → BUILD FAILURE）。
-#      接口测试（82 条）不在镜像构建里跑，而在 ci.yml 的 api 作业里跑，
-#      再由本文件顶部的 workflow_run 门禁拦住部署。
+#      接口测试（pytest 116 条，collect 实测；先前注释写 82）不在镜像构建里跑，
+#      而在 ci.yml 的 api 作业里跑，再由本文件顶部的 workflow_run 门禁拦住部署。
 #   3. **基础镜像不同**：Cloudland 用 maven:3.8.6-openjdk-8 / openjdk:8-jre-slim /
 #      node:16-alpine / nginx:alpine，均已转存到本项目 ACR。
 #      要刷新它们需另建一个 refresh workflow（pm-system 那份转存的是 Java 17 那一套，不适用）。

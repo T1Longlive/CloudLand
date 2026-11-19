@@ -6,7 +6,7 @@
 
 这不是"给项目补一些测试"，而是把**测试当成一套工程系统**来建：
 分层、有门禁、有数据治理、能自我纠错（缺陷会自己提醒你）。
-面试时能讲的不是"我写了 82 条用例"，而是"每一层为什么这么分、边界在哪、怎么保证它三年后还能跑"。
+面试时能讲的不是"我写了多少条用例"，而是"每一层为什么这么分、边界在哪、怎么保证它三年后还能跑"。
 
 ## 为什么这样分层
 
@@ -108,15 +108,15 @@ src/test/java/                       # 单元测试（JUnit 5）
 
 | 层 | 用例数 | 结果 | 耗时 | 依赖 |
 |---|---|---|---|---|
-| 单元（JUnit 5） | 83 | 全绿 | ~1s | 无外部依赖；JaCoCo 行覆盖基线 25.3% |
-| 接口（pytest） | 116（105 passed + 3 skipped + 8 xfailed） | 全绿 | ~10s | MySQL + Redis + 后端 |
+| 单元（JUnit 5） | 82（58 个 @Test + 2 个参数化展开 24） | 全绿 | ~1s | 无外部依赖；JaCoCo 行覆盖基线 25.3% |
+| 接口（pytest） | 116（collect 实测：105 passed + 3 skipped + 8 xfailed） | 全绿 | ~10s | MySQL + Redis + 后端 |
 | 端到端（Playwright / WebKit） | 7 | 连续 3 轮全绿 | ~15s | 后端 + MySQL + Redis + 前端 |
 | 前端单测（Vitest / jsdom） | 21 | 全绿；utils+config 行覆盖 100%，阈值 90/80 | ~1s | 无外部依赖（需 Node ≥ 22） |
 | 支付回调（自动化） | 3 | 验签通过→改单、重复投递幂等、篡改被拒、非成功状态忽略 | ~1s | 需一对配对密钥（CI 现场生成） |
 | 稳定性 | — | 三轮结果一致、临时数据零残留 | — | — |
 | 门禁有效性 | — | 故意让一条单测失败 → `BUILD FAILURE` | — | 已实测 |
 
-`xfailed` 是**有意的**：那是 6 条已确认缺陷的"缺陷记录用例"，见下一节。
+`xfailed` 是**有意的**：那是 8 条已确认缺陷的"缺陷记录用例"，见下一节。
 
 ## 这套框架抓到的真实缺陷（8 个，全部已固化为用例）
 
@@ -153,7 +153,7 @@ mysql -h127.0.0.1 -uroot -p123456 cloudland < data/seed/seed_test_accounts.sql
 
 # 接口测试
 ./.venv/Scripts/ruff.exe check .                              # 静态检查（CI 卡 errors）
-./.venv/Scripts/python.exe -m pytest                            # 全量 114 条
+./.venv/Scripts/python.exe -m pytest                            # 全量 116 条（collect 实测）
 ./.venv/Scripts/python.exe -m pytest -m smoke                   # 核心链路 47 条
 ./.venv/Scripts/python.exe -m pytest -m "smoke or p0"            # CI 里 PR 跑的集合，79 条
 ./.venv/Scripts/python.exe -m pytest --alluredir=allure-results  # 带报告
@@ -177,7 +177,7 @@ mysql -h127.0.0.1 -uroot -p123456 cloudland < data/seed/seed_test_accounts.sql
 
 ```bash
 # 单元测试（项目根目录）
-mvn test                                      # 83 条
+mvn test                                      # 82 条（58 @Test + 2 参数化展开 24）
 mvn test -Dtest=JwtUtilsTest                  # 只跑一个类
 mvn test -Dtest=CodeTest#whitelistCoversAllConstants   # 只跑一个方法
 ```
@@ -267,8 +267,8 @@ npx playwright show-report                    # 上次的 HTML 报告
 
 | 阶段 | 内容 | 状态 |
 |---|---|---|
-| 1 | 接口框架：三层分离 + 双层断言 + 数据驱动 + Allure | ✅ 114 条（含契约/支付/购物车/订单写路径/支付宝回调） |
-| 2 | 单元测试：JUnit 5（后端）+ Vitest（前端纯逻辑） | ✅ 83 + 21 条；JaCoCo 度量 + Vitest 覆盖率阈值（90% 行 / 80% 分支） |
+| 1 | 接口框架：三层分离 + 双层断言 + 数据驱动 + Allure | ✅ 116 条（含契约/支付/购物车/订单写路径/支付宝回调） |
+| 2 | 单元测试：JUnit 5（后端）+ Vitest（前端纯逻辑） | ✅ 82 + 21 条；JaCoCo 度量 + Vitest 覆盖率阈值（90% 行 / 80% 分支） |
 | 3 | E2E：Playwright 覆盖登录、注册、下单 | ✅ 7 条 / 连续 3 轮全绿（含三级地址联动、自动造数清数） |
 | 4 | 数据治理：幂等 seed、造数工厂、自动清理 | ✅ 工厂 + 幂等 seed + API 清理 + Redis 键清理 + E2E 临时账号/产品自动删，三轮零残留 |
 | 5 | 质量门禁：CI 分层调度 + 部署门禁 | ✅ ci.yml 七个作业（unit/frontend/api/e2e/allure/gate/smoke）+ 调度 + workflow_run 闭环（仅 push 触发部署） |
@@ -321,8 +321,8 @@ class 链 / nth-child / 兄弟结构  ← 禁止。今天能跑，改一次布�
 
 ## 下一步
 
-1. **前端单测**（当前 0）：`vue` 里的 `utils/auth.js` 登录态缓存、`config/app.js` URL 归一化都是纯函数，适合 Vitest + @vue/test-utils。
+1. **前端单测扩容**：当前 21 条，只覆盖了 `utils/auth.js` 与 `config/app.js` 的纯函数；组件与页面编排仍交给 E2E，按需补充。
 2. **JaCoCo 阈值**：现在只有 25.3% 的度量，没有 check。基线收敛后按包设阈值，让它成为真门禁。
 3. **E2E 扩容**：后台（登录 → 土地/产品/订单管理）与"删除订单"“支付跳转"两条分支还没覆盖。
 4. **性能与可观测**：k6/vegeta 压 `/land/page`、`/product/page`；Prometheus + Grafana + Alertmanager 尚未落地。
-5. **后端 6 个 xfail 缺陷本体**：业务代码一行未动，修完把 xfail 改成正式断言。
+5. **后端 8 个 xfail 缺陷本体**：业务代码一行未动，修完把 xfail 改成正式断言。
