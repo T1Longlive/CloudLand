@@ -71,6 +71,11 @@ jobs:
     name: 测试门禁
     uses: ./.github/workflows/ci.yml
     secrets: inherit
+    # ci.yml 的 allure-report 作业要推 gh-pages（contents: write）。
+    # 被调用工作流的权限不能超过调用方授予的权限，默认只给 read，
+    # 不显式提权会在启动时报 "requesting contents: write, but only allowed read"。
+    permissions:
+      contents: write
 
   build:
     name: 构建并推送镜像
