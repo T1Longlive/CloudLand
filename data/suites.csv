@@ -1,0 +1,487 @@
+"Status","Start Time","Stop Time","Duration in ms","Parent Suite","Suite","Sub Suite","Test Class","Test Method","Name","Description"
+"passed","Fri Nov 20 23:27:29 UTC 2026","Fri Nov 20 23:27:29 UTC 2026","70","tests","test_auth","TestLogin","","","test_login_failure[wrong_password]","异常流：密码错、账号不存在、验证码错、缺 frond 头。
+
+所有异常分支的共同点：
+- HTTP 依然是 200（本项目用业务码表达失败，只有拦截器才返回 401/402/403）；
+- data 为 null；
+- 不返回 token。
+
+这里把""HTTP 200 + 业务码失败""作为显式断言写下，
+就是为了让""只断言 HTTP 200""这种低级错误在这份代码里无处藏身。
+"
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","11","tests","test_authz","TestPublicAccess","","","test_product_detail_is_public",""
+"passed","Fri Nov 20 23:27:32 UTC 2026","Fri Nov 20 23:27:32 UTC 2026","199","tests","test_order","TestOrderWrite","","","test_customer_cannot_delete_others_order",""
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","2","tests","test_authz","TestAuthentication","","","test_missing_token_returns_401[DELETE /user]","不带 token 访问任何后台接口，都必须是 401，且不返回业务 JSON。
+
+除了状态码，还要断言""响应体不是统一 Result 结构""——
+如果哪天有人把 401 改成 200 + 业务码，这条会红，提醒你 API 契约变了。
+"
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","21","tests","test_authz","TestAuthorization","","","test_power_changed_returns_402","管理员改了我的权限后，我手里的旧 token 必须失效（402 请重新登录）。
+
+这是真实的安全要求：token 里带着 power，如果后端只信 token 不信库，
+一个被降权的管理员可以继续用旧 token 横着走。
+后端的做法是每次请求都比对 token.power 与库.power，不一致就 402。
+
+造数链路完全走 API：注册临时账号 → 拿 token → 管理员改 power → 用旧 token 请求。
+"
+"passed","Fri Nov 20 23:27:31 UTC 2026","Fri Nov 20 23:27:32 UTC 2026","95","tests","test_order","TestMyOrders","","","test_customer_id_is_overridden_by_login_state","客户无论传谁的 id，拿到的都必须是自己那份订单。
+
+不变量（恒等式）而不是具体条数：这库里历史订单引用的产品大多已删除，
+Service 层会 `continue` 跳过，导致返回空数组。
+所以这里断言""三次请求结果完全一致""，而不是断言""有多少条""——
+数据结构变了它不会误报，但一旦后端开始信任请求体里的 id，立刻会红。
+"
+"passed","Fri Nov 20 23:27:32 UTC 2026","Fri Nov 20 23:27:32 UTC 2026","5","tests","test_product","TestProductPublicQuery","","","test_product_page_structure",""
+"passed","Fri Nov 20 23:27:32 UTC 2026","Fri Nov 20 23:27:32 UTC 2026","3","tests","test_pay","TestPayAuthorization","","","test_missing_order_rejected",""
+"passed","Fri Nov 20 23:27:35 UTC 2026","Fri Nov 20 23:27:35 UTC 2026","142","tests","test_user","TestContactChange","","","test_change_phone_then_login_with_new",""
+"passed","Fri Nov 20 23:27:32 UTC 2026","Fri Nov 20 23:27:32 UTC 2026","188","tests","test_pay","TestPayAuthorization","","","test_customer_cannot_pay_others_order",""
+"passed","Fri Nov 20 23:27:34 UTC 2026","Fri Nov 20 23:27:35 UTC 2026","143","tests","test_user","TestRegisterUniqueness","","","test_duplicate_mail_rejected",""
+"passed","Fri Nov 20 23:27:32 UTC 2026","Fri Nov 20 23:27:32 UTC 2026","9","tests","test_order","TestMyOrders","","","test_staff_can_query_any_user","员工/管理员是客服角色，需要按用户查订单（后台订单页），因此不被覆盖。"
+"skipped","Fri Nov 20 23:27:32 UTC 2026","Fri Nov 20 23:27:32 UTC 2026","5","tests","test_product","TestProductPublicQuery","","","test_product_detail_not_found_should_not_500",""
+"skipped","Fri Nov 20 23:27:33 UTC 2026","Fri Nov 20 23:27:33 UTC 2026","4","tests","test_user","TestUserSecurity","","","test_page_users_must_not_leak_password_hash","把""分页接口泄露密码哈希""变成一条会自己提醒你的用例。
+
+风险说明（面试可讲的判断）：
+BCrypt 本身不可逆，但哈希外泄意味着攻击者可以离线爆破弱口令，
+而且一旦数据库其他表关联泄露，可横向撞库。
+正确做法是在 VO/DTO 层剥离 password，而不是依赖每个方法各自记得置空。
+"
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","6","tests","test_authz","TestAuthorization","","","test_employee_passes_authorization[POST /land]","员工（power=1）访问后台接口不应被拦成 403。
+
+只断言""没被拦住""，不断言业务成功：故意不传参数，
+请求会死在参数绑定阶段（400/415/500 都正常），
+这说明它**成功穿过了鉴权层**——正是本条要验证的东西。
+"
+"passed","Fri Nov 20 23:27:32 UTC 2026","Fri Nov 20 23:27:32 UTC 2026","15","tests","test_order","TestOrderPage","","","test_order_page_structure",""
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","14","tests","test_authz","TestAuthorization","","","test_employee_passes_authorization[PUT /order]","员工（power=1）访问后台接口不应被拦成 403。
+
+只断言""没被拦住""，不断言业务成功：故意不传参数，
+请求会死在参数绑定阶段（400/415/500 都正常），
+这说明它**成功穿过了鉴权层**——正是本条要验证的东西。
+"
+"passed","Fri Nov 20 23:27:31 UTC 2026","Fri Nov 20 23:27:31 UTC 2026","0","tests","test_contract","TestCodeTableContract","","","锚点常量锁定：SUCCESS=0 / FAILURE=-1",""
+"passed","Fri Nov 20 23:27:33 UTC 2026","Fri Nov 20 23:27:33 UTC 2026","298","tests","test_user","TestUserSecurity","","","test_customer_cannot_modify_others_profile","客户拿着别人的 id 去改资料，只能改到自己身上（后端强制回填登录者 id）。
+
+这是典型的 IDOR（越权访问对象）漏洞测试：
+请求体里带 victim 的 id，如果不做归属校验，就能改任意用户资料。
+
+用两个临时账号（攻击者/受害者）而不是拿 seed 账号当受害者 ——
+即使哪天后端真的出了漏洞，被写坏的也只是用完即删的临时账号。
+"
+"passed","Fri Nov 20 23:27:32 UTC 2026","Fri Nov 20 23:27:32 UTC 2026","57","tests","test_order","TestOrderWrite","","","test_product_order_decrements_and_delete_restores",""
+"skipped","Fri Nov 20 23:27:31 UTC 2026","Fri Nov 20 23:27:31 UTC 2026","7","tests","test_land","TestLandPublicQuery","","","test_land_detail_not_found_should_not_500","不存在的资源应明确返回""没有""，而不是 5xx。
+
+为什么这算缺陷而不是小事：
+1. 5xx 意味着服务端异常，监控会当成故障告警，真实故障被噪音淹没；
+2. 任何人用 /land/1 扫一遍就能触发大量异常日志（放大攻击面）；
+3. 前端拿不到 404 就无法区分""加载失败""和""这条数据被删了""。
+"
+"passed","Fri Nov 20 23:27:35 UTC 2026","Fri Nov 20 23:27:35 UTC 2026","71","tests","test_user","TestContactChange","","","test_contact_unchanged_rejected",""
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","3","tests","test_authz","TestAuthorization","","","test_customer_gets_403_with_power_reason[POST /user/id]","客户（power=0）访问后台接口必须 403，且带 X-Forbidden-Reason: power。
+
+为什么要断言这个自定义头：
+403 有两种完全不同的原因（账号禁用 / 权限不足），前端要据此给不同提示。
+只判 403 无法区分，一旦后端把两种原因都返 403 却不带头，前端就把""被禁用""提示成""权限不足""。
+"
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","2","tests","test_authz","TestAuthentication","","","test_invalid_token_returns_401[random_string]","伪造/损坏/空 token 一律 401。
+
+注意空字符串：后端判断的是 StringUtils.isEmpty(token)，
+所以 `token: """"` 与完全不传 token 等价，都必须 401。
+这类边界值是手工点页面永远点不到的。
+"
+"skipped","Fri Nov 20 23:27:31 UTC 2026","Fri Nov 20 23:27:31 UTC 2026","6","tests","test_msg","TestMsgSearch","","","test_msg_page_filter_by_phone_returns_nothing","用一个库里绝不存在的手机号搜索，必须返回 0 条。
+
+为什么这是缺陷而不是""没实现就算了""：
+返回全部数据比返回 0 条更危险 —— 后台运营以为""这个号码没留过言""，
+实际是搜索功能失效，会据此做出错误判断（比如重复回复、漏跟客户）。
+静默忽略查询条件，本质上是在给用户返回错误答案。
+"
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","1","tests","test_authz","TestAuthentication","","","test_missing_token_returns_401[DELETE /product]","不带 token 访问任何后台接口，都必须是 401，且不返回业务 JSON。
+
+除了状态码，还要断言""响应体不是统一 Result 结构""——
+如果哪天有人把 401 改成 200 + 业务码，这条会红，提醒你 API 契约变了。
+"
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","1","tests","test_authz","TestAuthentication","","","test_missing_token_returns_401[POST /product]","不带 token 访问任何后台接口，都必须是 401，且不返回业务 JSON。
+
+除了状态码，还要断言""响应体不是统一 Result 结构""——
+如果哪天有人把 401 改成 200 + 业务码，这条会红，提醒你 API 契约变了。
+"
+"passed","Fri Nov 20 23:27:29 UTC 2026","Fri Nov 20 23:27:29 UTC 2026","3","tests","test_auth","TestTokenChannel","","","test_garbage_token_renewal_rejected",""
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","4","tests","test_authz","TestAuthorization","","","test_employee_passes_authorization[DELETE /land]","员工（power=1）访问后台接口不应被拦成 403。
+
+只断言""没被拦住""，不断言业务成功：故意不传参数，
+请求会死在参数绑定阶段（400/415/500 都正常），
+这说明它**成功穿过了鉴权层**——正是本条要验证的东西。
+"
+"passed","Fri Nov 20 23:27:33 UTC 2026","Fri Nov 20 23:27:33 UTC 2026","5","tests","test_user","TestUserQuery","","","test_get_by_id_hides_password","按 id 查详情必须把 password 置空。
+
+这条用临时账号而不是 seed 账号：断言的是""任何账号都不该回吐密码""，
+用自己造的数据更干净，也不会因为别人改了 seed 账号而波动。
+"
+"passed","Fri Nov 20 23:27:34 UTC 2026","Fri Nov 20 23:27:34 UTC 2026","146","tests","test_user","TestRegisterUniqueness","","","test_duplicate_phone_rejected",""
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","3","tests","test_authz","TestAuthorization","","","test_customer_gets_403_with_power_reason[DELETE /land]","客户（power=0）访问后台接口必须 403，且带 X-Forbidden-Reason: power。
+
+为什么要断言这个自定义头：
+403 有两种完全不同的原因（账号禁用 / 权限不足），前端要据此给不同提示。
+只判 403 无法区分，一旦后端把两种原因都返 403 却不带头，前端就把""被禁用""提示成""权限不足""。
+"
+"passed","Fri Nov 20 23:27:32 UTC 2026","Fri Nov 20 23:27:32 UTC 2026","68","tests","test_order","TestOrderWrite","","","test_land_order_locks_and_delete_releases",""
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","13","tests","test_authz","TestPublicAccess","","","test_land_detail_is_public",""
+"skipped","Fri Nov 20 23:27:33 UTC 2026","Fri Nov 20 23:27:33 UTC 2026","5","tests","test_user","TestUserQuery","","","test_page_users_filter_by_phone_must_narrow_results","按手机号搜索必须收窄结果，而不是把全表倒给调用方。
+
+为什么这条重要（不只是""少个筛选""）：
+后台运营拿手机号搜用户，是核对""这个人到底有没有注册""的常用动作。
+条件被忽略时界面返回的是一整页无关账号，运营会得出""查到了""的错觉，
+进而对错误的人做改绑/禁用。**静默错误比报错危险**。
+
+这条是 E2E 造数时撞出来的：E2E 想按手机号定位刚注册的临时账号，
+结果每次都拿到全表，才发现条件根本没实现。
+"
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","5","tests","test_authz","TestAuthorization","","","test_employee_passes_authorization[PUT /product]","员工（power=1）访问后台接口不应被拦成 403。
+
+只断言""没被拦住""，不断言业务成功：故意不传参数，
+请求会死在参数绑定阶段（400/415/500 都正常），
+这说明它**成功穿过了鉴权层**——正是本条要验证的东西。
+"
+"passed","Fri Nov 20 23:27:33 UTC 2026","Fri Nov 20 23:27:33 UTC 2026","4","tests","test_user","TestUserQuery","","","test_page_size_is_respected","pageSize=2 时必须只返回 2 条。
+
+这条看着很傻，但分页参数被后端忽略是极常见的隐蔽 bug：
+页面只显示 2 条、实际拉了 500 条，用户看不出，只有抓包才知道。
+"
+"passed","Fri Nov 20 23:27:29 UTC 2026","Fri Nov 20 23:27:29 UTC 2026","69","tests","test_auth","TestLogin","","","test_login_failure[customer_without_frond]","异常流：密码错、账号不存在、验证码错、缺 frond 头。
+
+所有异常分支的共同点：
+- HTTP 依然是 200（本项目用业务码表达失败，只有拦截器才返回 401/402/403）；
+- data 为 null；
+- 不返回 token。
+
+这里把""HTTP 200 + 业务码失败""作为显式断言写下，
+就是为了让""只断言 HTTP 200""这种低级错误在这份代码里无处藏身。
+"
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","1","tests","test_authz","TestAuthentication","","","test_missing_token_returns_401[PUT /product]","不带 token 访问任何后台接口，都必须是 401，且不返回业务 JSON。
+
+除了状态码，还要断言""响应体不是统一 Result 结构""——
+如果哪天有人把 401 改成 200 + 业务码，这条会红，提醒你 API 契约变了。
+"
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","3","tests","test_authz","TestAuthorization","","","test_customer_gets_403_with_power_reason[POST /order/download]","客户（power=0）访问后台接口必须 403，且带 X-Forbidden-Reason: power。
+
+为什么要断言这个自定义头：
+403 有两种完全不同的原因（账号禁用 / 权限不足），前端要据此给不同提示。
+只判 403 无法区分，一旦后端把两种原因都返 403 却不带头，前端就把""被禁用""提示成""权限不足""。
+"
+"passed","Fri Nov 20 23:27:31 UTC 2026","Fri Nov 20 23:27:31 UTC 2026","0","tests","test_contract","TestCodeTableContract","","","码表无重值：一个数值只对应一个语义",""
+"passed","Fri Nov 20 23:27:31 UTC 2026","Fri Nov 20 23:27:31 UTC 2026","1","tests","test_contract","TestCodeTableContract","","","同名状态码逐键取值一致",""
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","3","tests","test_authz","TestAuthorization","","","test_customer_gets_403_with_power_reason[POST /msg/page]","客户（power=0）访问后台接口必须 403，且带 X-Forbidden-Reason: power。
+
+为什么要断言这个自定义头：
+403 有两种完全不同的原因（账号禁用 / 权限不足），前端要据此给不同提示。
+只判 403 无法区分，一旦后端把两种原因都返 403 却不带头，前端就把""被禁用""提示成""权限不足""。
+"
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","2","tests","test_authz","TestAuthentication","","","test_missing_token_returns_401[POST /msg/page]","不带 token 访问任何后台接口，都必须是 401，且不返回业务 JSON。
+
+除了状态码，还要断言""响应体不是统一 Result 结构""——
+如果哪天有人把 401 改成 200 + 业务码，这条会红，提醒你 API 契约变了。
+"
+"passed","Fri Nov 20 23:27:32 UTC 2026","Fri Nov 20 23:27:32 UTC 2026","65","tests","test_pay","TestPayAmount","","","test_server_recomputes_amount",""
+"passed","Fri Nov 20 23:27:31 UTC 2026","Fri Nov 20 23:27:31 UTC 2026","27","tests","test_land","TestLandPublicQuery","","","test_land_page_structure","土地分页返回结构满足前端列表页契约。"
+"passed","Fri Nov 20 23:27:33 UTC 2026","Fri Nov 20 23:27:33 UTC 2026","158","tests","test_trolley","TestTrolleyAuthorization","","","test_staff_can_delete_any_entry",""
+"passed","Fri Nov 20 23:27:31 UTC 2026","Fri Nov 20 23:27:31 UTC 2026","20","tests","test_msg","TestMsgPage","","","test_msg_page_structure",""
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","5","tests","test_authz","TestAuthorization","","","test_employee_passes_authorization[POST /product]","员工（power=1）访问后台接口不应被拦成 403。
+
+只断言""没被拦住""，不断言业务成功：故意不传参数，
+请求会死在参数绑定阶段（400/415/500 都正常），
+这说明它**成功穿过了鉴权层**——正是本条要验证的东西。
+"
+"passed","Fri Nov 20 23:27:32 UTC 2026","Fri Nov 20 23:27:32 UTC 2026","9","tests","test_pay","TestPayAuthorization","","","test_paid_order_rejected",""
+"passed","Fri Nov 20 23:27:31 UTC 2026","Fri Nov 20 23:27:31 UTC 2026","10","tests","test_msg","TestMsgSearch","","","test_msg_page_filter_by_name_works","用库里真实存在的姓名做模糊搜索，结果必须全部命中。
+
+这条是""对照组""：先证明分页的过滤机制本身是通的，
+后面那条缺陷用例（按手机号搜不到）才有说服力 ——
+否则无法区分""过滤整体坏了""和""只有某个字段没实现""。
+"
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","3","tests","test_authz","TestAuthorization","","","test_customer_gets_403_with_power_reason[DELETE /product]","客户（power=0）访问后台接口必须 403，且带 X-Forbidden-Reason: power。
+
+为什么要断言这个自定义头：
+403 有两种完全不同的原因（账号禁用 / 权限不足），前端要据此给不同提示。
+只判 403 无法区分，一旦后端把两种原因都返 403 却不带头，前端就把""被禁用""提示成""权限不足""。
+"
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","2","tests","test_authz","TestAuthentication","","","test_missing_token_returns_401[POST /order/page]","不带 token 访问任何后台接口，都必须是 401，且不返回业务 JSON。
+
+除了状态码，还要断言""响应体不是统一 Result 结构""——
+如果哪天有人把 401 改成 200 + 业务码，这条会红，提醒你 API 契约变了。
+"
+"passed","Fri Nov 20 23:27:32 UTC 2026","Fri Nov 20 23:27:33 UTC 2026","300","tests","test_trolley","TestTrolleyAuthorization","","","test_customer_cannot_delete_others_entry",""
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","1","tests","test_authz","TestAuthentication","","","test_missing_token_returns_401[POST /order/download]","不带 token 访问任何后台接口，都必须是 401，且不返回业务 JSON。
+
+除了状态码，还要断言""响应体不是统一 Result 结构""——
+如果哪天有人把 401 改成 200 + 业务码，这条会红，提醒你 API 契约变了。
+"
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","3","tests","test_authz","TestAuthorization","","","test_customer_gets_403_with_power_reason[POST /product]","客户（power=0）访问后台接口必须 403，且带 X-Forbidden-Reason: power。
+
+为什么要断言这个自定义头：
+403 有两种完全不同的原因（账号禁用 / 权限不足），前端要据此给不同提示。
+只判 403 无法区分，一旦后端把两种原因都返 403 却不带头，前端就把""被禁用""提示成""权限不足""。
+"
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","3","tests","test_authz","TestAuthorization","","","test_customer_gets_403_with_power_reason[POST /order/page]","客户（power=0）访问后台接口必须 403，且带 X-Forbidden-Reason: power。
+
+为什么要断言这个自定义头：
+403 有两种完全不同的原因（账号禁用 / 权限不足），前端要据此给不同提示。
+只判 403 无法区分，一旦后端把两种原因都返 403 却不带头，前端就把""被禁用""提示成""权限不足""。
+"
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","1","tests","test_authz","TestAuthentication","","","test_invalid_token_returns_401[empty_string]","伪造/损坏/空 token 一律 401。
+
+注意空字符串：后端判断的是 StringUtils.isEmpty(token)，
+所以 `token: """"` 与完全不传 token 等价，都必须 401。
+这类边界值是手工点页面永远点不到的。
+"
+"passed","Fri Nov 20 23:27:31 UTC 2026","Fri Nov 20 23:27:31 UTC 2026","1","tests","test_contract","TestCodeTableContract","","","isSuccess 白名单双端一致且引用合法",""
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","2","tests","test_authz","TestPublicAccess","","","test_admin_list_not_public[order_page]","这三条恰恰是""名字看起来像查询""的接口，最容易被误加进白名单。
+
+用列表驱动而不是写死三条断言，是因为以后新增后台接口时，
+只要往参数里补一行就会被覆盖到，不需要重写用例。
+"
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","6","tests","test_authz","TestAuthorization","","","test_employee_passes_authorization[POST /user/employee]","员工（power=1）访问后台接口不应被拦成 403。
+
+只断言""没被拦住""，不断言业务成功：故意不传参数，
+请求会死在参数绑定阶段（400/415/500 都正常），
+这说明它**成功穿过了鉴权层**——正是本条要验证的东西。
+"
+"skipped","Fri Nov 20 23:27:31 UTC 2026","Fri Nov 20 23:27:31 UTC 2026","309","tests","test_concurrency","TestStockRace","","","test_concurrent_orders_must_not_lose_stock_updates",""
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","2","tests","test_authz","TestAuthentication","","","test_missing_token_returns_401[PUT /order]","不带 token 访问任何后台接口，都必须是 401，且不返回业务 JSON。
+
+除了状态码，还要断言""响应体不是统一 Result 结构""——
+如果哪天有人把 401 改成 200 + 业务码，这条会红，提醒你 API 契约变了。
+"
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","3","tests","test_authz","TestAuthorization","","","test_customer_gets_403_with_power_reason[POST /msg/push]","客户（power=0）访问后台接口必须 403，且带 X-Forbidden-Reason: power。
+
+为什么要断言这个自定义头：
+403 有两种完全不同的原因（账号禁用 / 权限不足），前端要据此给不同提示。
+只判 403 无法区分，一旦后端把两种原因都返 403 却不带头，前端就把""被禁用""提示成""权限不足""。
+"
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","3","tests","test_authz","TestAuthorization","","","test_customer_gets_403_with_power_reason[POST /land]","客户（power=0）访问后台接口必须 403，且带 X-Forbidden-Reason: power。
+
+为什么要断言这个自定义头：
+403 有两种完全不同的原因（账号禁用 / 权限不足），前端要据此给不同提示。
+只判 403 无法区分，一旦后端把两种原因都返 403 却不带头，前端就把""被禁用""提示成""权限不足""。
+"
+"skipped","Fri Nov 20 23:27:29 UTC 2026","Fri Nov 20 23:27:29 UTC 2026","162","tests","test_auth","TestRegister","","","缺陷记录：注册不传详细地址时后端返回 500 而不是 4xx 参数错误","把""真实缺陷""变成一条会自己提醒你的用例。
+
+为什么用 xfail(strict=True) 而不是删掉不测：
+- 它让缺陷在报告里""可见""，而不是消失在口头描述里；
+- 后端一旦修复，这条会 XPASS → strict 模式直接失败，强制你回来把它改成正式用例；
+- 面试时可以指着它讲""我是怎么把线上问题沉淀成回归资产的""。
+
+当前事实：前端注册表单有必填校验，所以正常 UI 路径不会触发；
+但接口层面任何人都能构造缺字段请求，5xx + 堆栈属于信息泄露与可用性问题。
+"
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","1","tests","test_authz","TestPublicAccess","","","test_admin_list_not_public[msg_page]","这三条恰恰是""名字看起来像查询""的接口，最容易被误加进白名单。
+
+用列表驱动而不是写死三条断言，是因为以后新增后台接口时，
+只要往参数里补一行就会被覆盖到，不需要重写用例。
+"
+"passed","Fri Nov 20 23:27:28 UTC 2026","Fri Nov 20 23:27:28 UTC 2026","358","tests","test_alipay_notify","TestAlipayNotify","","","test_notify_marks_order_paid_and_is_idempotent",""
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","4","tests","test_authz","TestAuthorization","","","test_employee_passes_authorization[POST /user/page]","员工（power=1）访问后台接口不应被拦成 403。
+
+只断言""没被拦住""，不断言业务成功：故意不传参数，
+请求会死在参数绑定阶段（400/415/500 都正常），
+这说明它**成功穿过了鉴权层**——正是本条要验证的东西。
+"
+"passed","Fri Nov 20 23:27:29 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","165","tests","test_auth","TestTokenChannel","","","test_disabled_account_token_rejected",""
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","2","tests","test_authz","TestAuthentication","","","test_missing_token_returns_401[POST /user/id]","不带 token 访问任何后台接口，都必须是 401，且不返回业务 JSON。
+
+除了状态码，还要断言""响应体不是统一 Result 结构""——
+如果哪天有人把 401 改成 200 + 业务码，这条会红，提醒你 API 契约变了。
+"
+"passed","Fri Nov 20 23:27:29 UTC 2026","Fri Nov 20 23:27:29 UTC 2026","231","tests","test_auth","TestRegister","","","新用户注册成功，且注册时的 power 提权尝试被服务端忽略","注册 → 登录 的连通性用例，同时守住一个真实修过的安全缺陷。
+
+历史问题：注册接口曾经直接把客户端传来的 power 存库，
+构造 power=2 的请求就能注册成管理员。
+现在服务端强制 power=0/status=1/debt=0。
+
+用例里故意传 power=2，然后从后台读回真实 power，断言必须是 0。
+比""读源码确认""强得多 —— 它会在任何人重新引入该缺陷时立刻变红。
+
+数据从 `make_temp_account` 工厂来，不用自己调 register()：
+工厂会在用例结束后删账号。自己手工注册的账号没有归宿，
+跑几轮库里就堆一堆 134 段垃圾数据 —— 这是数据治理最容易漏的一环。
+"
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","1","tests","test_authz","TestAuthentication","","","test_missing_token_returns_401[PUT /land]","不带 token 访问任何后台接口，都必须是 401，且不返回业务 JSON。
+
+除了状态码，还要断言""响应体不是统一 Result 结构""——
+如果哪天有人把 401 改成 200 + 业务码，这条会红，提醒你 API 契约变了。
+"
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","2","tests","test_authz","TestAuthentication","","","test_missing_token_returns_401[POST /user/page]","不带 token 访问任何后台接口，都必须是 401，且不返回业务 JSON。
+
+除了状态码，还要断言""响应体不是统一 Result 结构""——
+如果哪天有人把 401 改成 200 + 业务码，这条会红，提醒你 API 契约变了。
+"
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","3","tests","test_authz","TestAuthentication","","","test_invalid_token_returns_401[three_parts_but_invalid]","伪造/损坏/空 token 一律 401。
+
+注意空字符串：后端判断的是 StringUtils.isEmpty(token)，
+所以 `token: """"` 与完全不传 token 等价，都必须 401。
+这类边界值是手工点页面永远点不到的。
+"
+"passed","Fri Nov 20 23:27:28 UTC 2026","Fri Nov 20 23:27:28 UTC 2026","157","tests","test_alipay_notify","TestAlipayNotify","","","test_notify_rejects_tampered_payload",""
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","5","tests","test_authz","TestAuthorization","","","test_employee_passes_authorization[PUT /land]","员工（power=1）访问后台接口不应被拦成 403。
+
+只断言""没被拦住""，不断言业务成功：故意不传参数，
+请求会死在参数绑定阶段（400/415/500 都正常），
+这说明它**成功穿过了鉴权层**——正是本条要验证的东西。
+"
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","1","tests","test_authz","TestAuthentication","","","test_missing_token_returns_401[POST /land]","不带 token 访问任何后台接口，都必须是 401，且不返回业务 JSON。
+
+除了状态码，还要断言""响应体不是统一 Result 结构""——
+如果哪天有人把 401 改成 200 + 业务码，这条会红，提醒你 API 契约变了。
+"
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","2","tests","test_authz","TestPublicAccess","","","test_admin_list_not_public[user_page]","这三条恰恰是""名字看起来像查询""的接口，最容易被误加进白名单。
+
+用列表驱动而不是写死三条断言，是因为以后新增后台接口时，
+只要往参数里补一行就会被覆盖到，不需要重写用例。
+"
+"passed","Fri Nov 20 23:27:33 UTC 2026","Fri Nov 20 23:27:33 UTC 2026","4","tests","test_user","TestUserQuery","","","test_admin_page_users_returns_pagination","员工可查用户列表，且分页结构满足前端契约。
+
+为什么断言这四个字段：Element UI 的分页组件直接吃
+current / size / total / records，少一个前端就渲染成空白，
+而 HTTP 依然是 200 —— 只判状态码发现不了。
+"
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","3","tests","test_authz","TestAuthorization","","","test_customer_gets_403_with_power_reason[PUT /order]","客户（power=0）访问后台接口必须 403，且带 X-Forbidden-Reason: power。
+
+为什么要断言这个自定义头：
+403 有两种完全不同的原因（账号禁用 / 权限不足），前端要据此给不同提示。
+只判 403 无法区分，一旦后端把两种原因都返 403 却不带头，前端就把""被禁用""提示成""权限不足""。
+"
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","4","tests","test_authz","TestAuthorization","","","test_customer_gets_403_with_power_reason[PUT /land]","客户（power=0）访问后台接口必须 403，且带 X-Forbidden-Reason: power。
+
+为什么要断言这个自定义头：
+403 有两种完全不同的原因（账号禁用 / 权限不足），前端要据此给不同提示。
+只判 403 无法区分，一旦后端把两种原因都返 403 却不带头，前端就把""被禁用""提示成""权限不足""。
+"
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","3","tests","test_authz","TestAuthorization","","","test_customer_gets_403_with_power_reason[DELETE /user]","客户（power=0）访问后台接口必须 403，且带 X-Forbidden-Reason: power。
+
+为什么要断言这个自定义头：
+403 有两种完全不同的原因（账号禁用 / 权限不足），前端要据此给不同提示。
+只判 403 无法区分，一旦后端把两种原因都返 403 却不带头，前端就把""被禁用""提示成""权限不足""。
+"
+"passed","Fri Nov 20 23:27:34 UTC 2026","Fri Nov 20 23:27:34 UTC 2026","70","tests","test_user","TestUpdatePassword","","","test_wrong_old_password_rejected",""
+"passed","Fri Nov 20 23:27:32 UTC 2026","Fri Nov 20 23:27:32 UTC 2026","7","tests","test_product","TestProductPublicQuery","","","test_product_detail_matches_list",""
+"passed","Fri Nov 20 23:27:31 UTC 2026","Fri Nov 20 23:27:31 UTC 2026","14","tests","test_msg","TestMessageLimit","","","test_message_limit_enforced","用一个""已经饱和""的手机号再提交一条，必须被拒绝。
+
+为什么用现有饱和数据而不是自己造 10 条：
+留言没有删除接口，自己造 10 条就永久留在库里，越跑越脏。
+借用已饱和的手机号，既验证了边界规则，又零写入。
+"
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","5","tests","test_authz","TestAuthorization","","","test_employee_passes_authorization[POST /msg/page]","员工（power=1）访问后台接口不应被拦成 403。
+
+只断言""没被拦住""，不断言业务成功：故意不传参数，
+请求会死在参数绑定阶段（400/415/500 都正常），
+这说明它**成功穿过了鉴权层**——正是本条要验证的东西。
+"
+"passed","Fri Nov 20 23:27:29 UTC 2026","Fri Nov 20 23:27:29 UTC 2026","5","tests","test_auth","TestLogin","","","test_login_failure[wrong_code]","异常流：密码错、账号不存在、验证码错、缺 frond 头。
+
+所有异常分支的共同点：
+- HTTP 依然是 200（本项目用业务码表达失败，只有拦截器才返回 401/402/403）；
+- data 为 null；
+- 不返回 token。
+
+这里把""HTTP 200 + 业务码失败""作为显式断言写下，
+就是为了让""只断言 HTTP 200""这种低级错误在这份代码里无处藏身。
+"
+"passed","Fri Nov 20 23:27:29 UTC 2026","Fri Nov 20 23:27:29 UTC 2026","7","tests","test_auth","TestTokenChannel","","","test_token_renewal_returns_new_jwt",""
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","4","tests","test_authz","TestAuthorization","","","test_employee_passes_authorization[POST /user/id]","员工（power=1）访问后台接口不应被拦成 403。
+
+只断言""没被拦住""，不断言业务成功：故意不传参数，
+请求会死在参数绑定阶段（400/415/500 都正常），
+这说明它**成功穿过了鉴权层**——正是本条要验证的东西。
+"
+"passed","Fri Nov 20 23:27:34 UTC 2026","Fri Nov 20 23:27:34 UTC 2026","69","tests","test_user","TestUpdatePassword","","","test_same_password_rejected","新旧密码相同应明确拒绝（20010），而不是白跑一次加密。"
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","3","tests","test_authz","TestAuthorization","","","test_customer_gets_403_with_power_reason[PUT /product]","客户（power=0）访问后台接口必须 403，且带 X-Forbidden-Reason: power。
+
+为什么要断言这个自定义头：
+403 有两种完全不同的原因（账号禁用 / 权限不足），前端要据此给不同提示。
+只判 403 无法区分，一旦后端把两种原因都返 403 却不带头，前端就把""被禁用""提示成""权限不足""。
+"
+"passed","Fri Nov 20 23:27:29 UTC 2026","Fri Nov 20 23:27:29 UTC 2026","72","tests","test_auth","TestLogin","","","客户账号密码正确时登录成功，返回可用 JWT 与账号信息","正常流：不只判成功码，还要判""承诺给前端的东西""是否真的给了。
+
+这一条用例同时守住了四个契约，任何一条被改坏都该红：
+1. 业务码 20005；
+2. JWT 在 msg 里（不是 data、不是响应头）；
+3. data 回显账号信息且 password 被清空（安全：接口不能回吐密码哈希）；
+4. 客户账号带 frond 头可登录（power=0 的放行条件）。
+"
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","5","tests","test_authz","TestAuthorization","","","test_employee_passes_authorization[DELETE /user]","员工（power=1）访问后台接口不应被拦成 403。
+
+只断言""没被拦住""，不断言业务成功：故意不传参数，
+请求会死在参数绑定阶段（400/415/500 都正常），
+这说明它**成功穿过了鉴权层**——正是本条要验证的东西。
+"
+"passed","Fri Nov 20 23:27:29 UTC 2026","Fri Nov 20 23:27:29 UTC 2026","131","tests","test_alipay_notify","TestAlipayNotify","","","test_notify_ignores_non_success_status",""
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","2","tests","test_authz","TestAuthentication","","","test_missing_token_returns_401[POST /msg/push]","不带 token 访问任何后台接口，都必须是 401，且不返回业务 JSON。
+
+除了状态码，还要断言""响应体不是统一 Result 结构""——
+如果哪天有人把 401 改成 200 + 业务码，这条会红，提醒你 API 契约变了。
+"
+"passed","Fri Nov 20 23:27:32 UTC 2026","Fri Nov 20 23:27:32 UTC 2026","5","tests","test_product","TestProductPublicQuery","","","test_product_page_size_respected",""
+"passed","Fri Nov 20 23:27:32 UTC 2026","Fri Nov 20 23:27:32 UTC 2026","10","tests","test_order","TestOrderPage","","","test_order_page_size_respected",""
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","4","tests","test_authz","TestAuthorization","","","test_employee_passes_authorization[DELETE /product]","员工（power=1）访问后台接口不应被拦成 403。
+
+只断言""没被拦住""，不断言业务成功：故意不传参数，
+请求会死在参数绑定阶段（400/415/500 都正常），
+这说明它**成功穿过了鉴权层**——正是本条要验证的东西。
+"
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","14","tests","test_authz","TestAuthorization","","","test_disabled_account_returns_403_with_status_reason","账号被禁用后，已登录的 token 必须立即失效（403 + X-Forbidden-Reason: status）。"
+"passed","Fri Nov 20 23:27:31 UTC 2026","Fri Nov 20 23:27:31 UTC 2026","0","tests","test_contract","TestCodeTableContract","","","前端 getCodeMessage 覆盖全部状态码",""
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","22","tests","test_authz","TestPublicAccess","","","test_land_page_is_public",""
+"skipped","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:31 UTC 2026","519","tests","test_concurrency","TestStockRace","","","test_concurrent_orders_must_not_oversell",""
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","4","tests","test_authz","TestAuthorization","","","test_customer_gets_403_with_power_reason[POST /user/employee]","客户（power=0）访问后台接口必须 403，且带 X-Forbidden-Reason: power。
+
+为什么要断言这个自定义头：
+403 有两种完全不同的原因（账号禁用 / 权限不足），前端要据此给不同提示。
+只判 403 无法区分，一旦后端把两种原因都返 403 却不带头，前端就把""被禁用""提示成""权限不足""。
+"
+"passed","Fri Nov 20 23:27:32 UTC 2026","Fri Nov 20 23:27:32 UTC 2026","37","tests","test_trolley","TestTrolleyOwn","","","test_add_list_delete_own",""
+"passed","Fri Nov 20 23:27:29 UTC 2026","Fri Nov 20 23:27:29 UTC 2026","5","tests","test_auth","TestLogin","","","test_login_failure[phone_not_exist]","异常流：密码错、账号不存在、验证码错、缺 frond 头。
+
+所有异常分支的共同点：
+- HTTP 依然是 200（本项目用业务码表达失败，只有拦截器才返回 401/402/403）；
+- data 为 null；
+- 不返回 token。
+
+这里把""HTTP 200 + 业务码失败""作为显式断言写下，
+就是为了让""只断言 HTTP 200""这种低级错误在这份代码里无处藏身。
+"
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","4","tests","test_authz","TestAuthorization","","","test_employee_passes_authorization[POST /order/page]","员工（power=1）访问后台接口不应被拦成 403。
+
+只断言""没被拦住""，不断言业务成功：故意不传参数，
+请求会死在参数绑定阶段（400/415/500 都正常），
+这说明它**成功穿过了鉴权层**——正是本条要验证的东西。
+"
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","8","tests","test_authz","TestPublicAccess","","","test_product_page_is_public",""
+"passed","Fri Nov 20 23:27:31 UTC 2026","Fri Nov 20 23:27:31 UTC 2026","0","tests","test_contract","TestCodeTableContract","","","两端码表键集合一致：无缺失、无多余",""
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","2","tests","test_authz","TestAuthentication","","","test_missing_token_returns_401[DELETE /land]","不带 token 访问任何后台接口，都必须是 401，且不返回业务 JSON。
+
+除了状态码，还要断言""响应体不是统一 Result 结构""——
+如果哪天有人把 401 改成 200 + 业务码，这条会红，提醒你 API 契约变了。
+"
+"passed","Fri Nov 20 23:27:31 UTC 2026","Fri Nov 20 23:27:31 UTC 2026","33","tests","test_order","TestMyOrders","","","test_my_orders_returns_list",""
+"passed","Fri Nov 20 23:27:31 UTC 2026","Fri Nov 20 23:27:31 UTC 2026","14","tests","test_land","TestLandPublicQuery","","","test_land_page_size_respected",""
+"passed","Fri Nov 20 23:27:34 UTC 2026","Fri Nov 20 23:27:34 UTC 2026","276","tests","test_user","TestUpdatePassword","","","test_change_password_then_login_with_new","改密不只是""返回成功""，必须能用新密码登录、且旧密码失效。
+
+只断言 10003 是不够的：更新了错误的字段、或者加密方式不一致，
+都会返回成功但实际登录不上。端到端验证才是真的验证。
+"
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","5","tests","test_authz","TestAuthorization","","","test_customer_gets_403_with_power_reason[POST /user/page]","客户（power=0）访问后台接口必须 403，且带 X-Forbidden-Reason: power。
+
+为什么要断言这个自定义头：
+403 有两种完全不同的原因（账号禁用 / 权限不足），前端要据此给不同提示。
+只判 403 无法区分，一旦后端把两种原因都返 403 却不带头，前端就把""被禁用""提示成""权限不足""。
+"
+"passed","Fri Nov 20 23:27:30 UTC 2026","Fri Nov 20 23:27:30 UTC 2026","1","tests","test_authz","TestAuthentication","","","test_missing_token_returns_401[POST /user/employee]","不带 token 访问任何后台接口，都必须是 401，且不返回业务 JSON。
+
+除了状态码，还要断言""响应体不是统一 Result 结构""——
+如果哪天有人把 401 改成 200 + 业务码，这条会红，提醒你 API 契约变了。
+"
+"passed","Fri Nov 20 23:27:31 UTC 2026","Fri Nov 20 23:27:31 UTC 2026","21","tests","test_land","TestLandPublicQuery","","","test_land_detail_matches_list","详情接口返回的字段必须与列表里同一条记录一致。
+
+这类""同一份数据两个接口""的一致性检查很值钱：
+后端常常在 VO 层给列表和详情写了两套 SQL，改了一边忘了另一边，
+前端就会""列表显示名字、点进去空白""。
+"
