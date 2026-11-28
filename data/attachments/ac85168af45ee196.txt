@@ -1,0 +1,3 @@
+GET http://127.0.0.1:9090/api/product/15
+耗时 4.9ms
+HTTP 200

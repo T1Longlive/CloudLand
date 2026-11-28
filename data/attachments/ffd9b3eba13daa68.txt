@@ -1,0 +1,3 @@
+POST http://127.0.0.1:9090/api/user/register
+耗时 70.2ms
+HTTP 200
